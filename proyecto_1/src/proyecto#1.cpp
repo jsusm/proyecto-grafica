@@ -226,14 +226,25 @@ public:
     // Aquí irían cosas que cambian automáticamente con el tiempo
   }
   void drawUI() override {
+    // ImGui::ShowDemoWindow();
+
+    // Set up tools window options
+
     ImGuiWindowFlags window_flags = 0;
     window_flags |= ImGuiWindowFlags_NoMove;
     window_flags |= ImGuiWindowFlags_NoResize;
     window_flags |= ImGuiWindowFlags_NoCollapse;
     ImGui::SetNextWindowPos(ImVec2(WindowWidth - ToolsWindowWidth, 0));
     ImGui::SetNextWindowSize(ImVec2(ToolsWindowWidth, 1000));
+
+    // Begin
+
     ImGui::Begin("Herramientas", NULL, window_flags);
     ImGui::Text("FPS: %.1f", ImGui::GetIO().Framerate);
+    ImGui::BulletText("Herramientas");
+    ImGui::Button("Line");
+    ImGui::SameLine();
+    ImGui::Button("Square");
     ImGui::Separator();
     float col[3] = {colorPincel.r, colorPincel.g, colorPincel.b};
     if (ImGui::ColorEdit3("Color Pincel", col)) {
