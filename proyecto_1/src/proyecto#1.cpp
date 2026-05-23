@@ -151,8 +151,10 @@ public:
   }
 };
 
-int WindowWidth = 1618;
-int WindowHeight = 1000;
+enum class ToolsType { Line, Rect, Select };
+
+int WindowWidth = 1020;
+int WindowHeight = 630;
 int ToolsWindowWidth = 300;
 
 class proyecto1 : public Engine2D {
@@ -163,19 +165,19 @@ private:
 
 public:
   proyecto1()
-      : Engine2D(1610, 1000,
+      : Engine2D(1020, 630,
                  "Proyecto #1 - Gestion y Despliegue de Primitivas") {}
 
+  // points to the figure currently focused
   Figure *currentFigure = nullptr;
+  // The list of figures
   std::vector<Figure *> Figures{};
+
+  ToolsType currentTool = ToolsType::Line;
 
   void setup() override {
     clear(colorFondo);
     std::cout << "Motor inicializado exitosamente." << std::endl;
-
-    Figures.push_back(new Line());
-
-    currentFigure = Figures.at(0);
   }
   // Eventos
   void onkeyDown(int key) override {
@@ -196,9 +198,17 @@ public:
         currentFigure = nullptr;
       }
     } else {
-      currentFigure = new Line();
-      Figures.push_back(currentFigure);
-      currentFigure->onMouseClick(x, y);
+      switch (currentTool) {
+      case ToolsType::Line:
+        currentFigure = new Line();
+        Figures.push_back(currentFigure);
+        currentFigure->onMouseClick(x, y);
+        break;
+      case ToolsType::Rect:
+        break;
+      case ToolsType::Select:
+        break;
+      }
     }
   }
   void onMouseButtonUp(int button, double x, double y) override {
@@ -225,6 +235,22 @@ public:
     }
     // Aquí irían cosas que cambian automáticamente con el tiempo
   }
+
+  void toolsSection() {
+    ImGui::SeparatorText("Herramientas");
+    if (ImGui::Button("Line")) {
+      currentTool = ToolsType::Line;
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Rect")) {
+      currentTool = ToolsType::Rect;
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Select")) {
+      currentTool = ToolsType::Select;
+    }
+  }
+
   void drawUI() override {
     // ImGui::ShowDemoWindow();
 
@@ -235,16 +261,14 @@ public:
     window_flags |= ImGuiWindowFlags_NoResize;
     window_flags |= ImGuiWindowFlags_NoCollapse;
     ImGui::SetNextWindowPos(ImVec2(WindowWidth - ToolsWindowWidth, 0));
-    ImGui::SetNextWindowSize(ImVec2(ToolsWindowWidth, 1000));
+    ImGui::SetNextWindowSize(ImVec2(ToolsWindowWidth, WindowHeight));
 
     // Begin
 
     ImGui::Begin("Herramientas", NULL, window_flags);
     ImGui::Text("FPS: %.1f", ImGui::GetIO().Framerate);
-    ImGui::BulletText("Herramientas");
-    ImGui::Button("Line");
-    ImGui::SameLine();
-    ImGui::Button("Square");
+    ImGui::Separator();
+    toolsSection();
     ImGui::Separator();
     float col[3] = {colorPincel.r, colorPincel.g, colorPincel.b};
     if (ImGui::ColorEdit3("Color Pincel", col)) {
