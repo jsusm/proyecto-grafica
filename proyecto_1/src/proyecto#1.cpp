@@ -1,14 +1,14 @@
 ﻿#include "engine2D.h"
 #include "imgui.h"
+#include "primitives.h"
 #include <cstdio>
 #include <cstdlib>
 #include <functional>
 #include <iostream>
-#include "primitives.h"
 
 enum class RectState { SelectingVrtx1, SelectingVrtx2, Done };
 
-class Rect: public Figure {
+class Rect : public Figure {
 public:
   Point vrtx1;
   Point vrtx2;
@@ -29,7 +29,7 @@ public:
   }
 
   void draw(std::function<void(int, int, const Color &)> putPixel) {
-    if(state != RectState::SelectingVrtx1) {
+    if (state != RectState::SelectingVrtx1) {
       deployLine(Point(vrtx1.x, vrtx1.y), Point(vrtx2.x, vrtx1.y), putPixel);
       deployLine(Point(vrtx1.x, vrtx1.y), Point(vrtx1.x, vrtx2.y), putPixel);
       deployLine(Point(vrtx1.x, vrtx2.y), Point(vrtx2.x, vrtx2.y), putPixel);
@@ -68,9 +68,7 @@ public:
     stateMachine(true);
     return state == RectState::Done;
   }
-
 };
-
 
 enum class LineState { SelectingStartNode, SelectingEndNode, Done };
 
@@ -137,7 +135,118 @@ public:
   }
 };
 
-enum class ToolsType { Line, Rect, Select };
+enum class ElipceState { SelectingVrtx1, SelectingVrtx2, Done };
+
+class Elipce : public Figure {
+public:
+  Point vrtx1;
+  Point vrtx2;
+  ElipceState state;
+
+  void stateMachine(bool goFoward) {
+    switch (state) {
+    case ElipceState::SelectingVrtx1:
+      state = ElipceState::SelectingVrtx2;
+      break;
+    case ElipceState::SelectingVrtx2:
+      state = ElipceState::Done;
+      break;
+    case ElipceState::Done:
+      state = ElipceState::Done;
+      break;
+    }
+  }
+
+  void drawElipcePoints(int x, int y, const Color &c, int centerx, int centery,
+                        int flipcoords,
+                        std::function<void(int, int, const Color &)> putPixel) {
+
+    if (flipcoords) {
+      int aux = x;
+      x = y;
+      y = aux;
+    }
+    putPixel(centerx + x, centery + y, c);
+    putPixel(centerx + x, centery - y, c);
+    putPixel(centerx - x, centery - y, c);
+    putPixel(centerx - x, centery + y, c);
+  }
+
+  void draw(std::function<void(int, int, const Color &)> putPixel) {
+    int centerx = (vrtx2.x + vrtx1.x) / 2;
+    int centery = (vrtx2.y + vrtx1.y) / 2;
+    int a = std::abs(vrtx1.x - vrtx2.x) / 2;
+    int b = std::abs(vrtx1.y - vrtx2.y) / 2;
+    bool flipcoords = false;
+    if (a < b) {
+      flipcoords = true;
+      int aux = a;
+      a = b;
+      b = aux;
+    }
+    int x, y, d;
+    // Modalidad 1
+    x = 0;
+    y = b;
+    d = b * (4 * b - 4 * a * a) + a * a;
+    Color c(1.0f, 1.0f, 1.0f);
+    drawElipcePoints(x, y, c, centerx, centery, flipcoords, putPixel);
+    while (b * b * 2 * (x + 1) < a * a * (2 * y - 1)) {
+      if (d < 0) {
+        d += 4 * (b * b * (2 * x + 3));
+      } else {
+        d += 4 * (b * b * (2 * x + 3) + a * a * (-2 * y + 2));
+        y--;
+      }
+      x++;
+      drawElipcePoints(x, y, c, centerx, centery, flipcoords, putPixel);
+    }
+    // Modalidad 2
+    while (y > 0) {
+      if (d < 0) {
+        d += 4 * (b * b * (2 * x + 2) + a * a * (-2 * y + 3));
+        x++;
+      } else {
+        d += 4 * a * a * (-2 * y + 3);
+      }
+      y--;
+      drawElipcePoints(x, y, c, centerx, centery, flipcoords, putPixel);
+    }
+  };
+  bool onMouseMove(int x, int y) {
+    switch (state) {
+    case ElipceState::SelectingVrtx1:
+    case ElipceState::Done:
+      break;
+    case ElipceState::SelectingVrtx2:
+      vrtx2.x = x;
+      vrtx2.y = y;
+      break;
+    }
+    return false;
+  }
+
+  bool onMouseClick(int x, int y) {
+    switch (state) {
+    case ElipceState::SelectingVrtx1:
+      vrtx1.x = x;
+      vrtx1.y = y;
+      vrtx2.x = x;
+      vrtx2.y = y;
+      break;
+    case ElipceState::Done:
+      break;
+    case ElipceState::SelectingVrtx2:
+      vrtx2.x = x;
+      vrtx2.y = y;
+      break;
+    }
+    stateMachine(true);
+    return state == ElipceState::Done;
+  }
+};
+
+enum class ToolsType { Line, Rect, Elipce, Select };
 
 int WindowWidth = 1020;
 int WindowHeight = 630;
@@ -197,6 +306,10 @@ public:
         break;
       case ToolsType::Select:
         break;
+      case ToolsType::Elipce:
+        currentFigure = new Elipce();
+        Figures.push_back(currentFigure);
+        currentFigure->onMouseClick(x, y);
       }
     }
   }
@@ -233,6 +346,10 @@ public:
     ImGui::SameLine();
     if (ImGui::Button("Rect")) {
       currentTool = ToolsType::Rect;
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Elipce")) {
+      currentTool = ToolsType::Elipce;
     }
     ImGui::SameLine();
     if (ImGui::Button("Select")) {
