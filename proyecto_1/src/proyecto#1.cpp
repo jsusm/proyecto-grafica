@@ -4,94 +4,75 @@
 #include <cstdlib>
 #include <functional>
 #include <iostream>
-#include <vector>
+#include "primitives.h"
 
-enum class FigureType { Line, unknow };
+enum class RectState { SelectingVrtx1, SelectingVrtx2, Done };
 
-class Figure {
+class Rect: public Figure {
 public:
-  FigureType type = FigureType::unknow;
-  bool selected = false;
-  virtual void draw(std::function<void(int, int, const Color &)> putPixel) {};
-  virtual void select() {}
-  virtual void unselect() {}
-  virtual bool onMouseMove(int, int) { return false; }
-  virtual bool onMouseClick(int, int) { return false; }
+  Point vrtx1;
+  Point vrtx2;
+  RectState state;
+
+  void stateMachine(bool goFoward) {
+    switch (state) {
+    case RectState::SelectingVrtx1:
+      state = RectState::SelectingVrtx2;
+      break;
+    case RectState::SelectingVrtx2:
+      state = RectState::Done;
+      break;
+    case RectState::Done:
+      state = RectState::Done;
+      break;
+    }
+  }
+
+  void draw(std::function<void(int, int, const Color &)> putPixel) {
+    if(state != RectState::SelectingVrtx1) {
+      deployLine(Point(vrtx1.x, vrtx1.y), Point(vrtx2.x, vrtx1.y), putPixel);
+      deployLine(Point(vrtx1.x, vrtx1.y), Point(vrtx1.x, vrtx2.y), putPixel);
+      deployLine(Point(vrtx1.x, vrtx2.y), Point(vrtx2.x, vrtx2.y), putPixel);
+      deployLine(Point(vrtx2.x, vrtx1.y), Point(vrtx2.x, vrtx2.y), putPixel);
+    }
+  };
+
+  bool onMouseMove(int x, int y) {
+    switch (state) {
+    case RectState::SelectingVrtx1:
+    case RectState::Done:
+      break;
+    case RectState::SelectingVrtx2:
+      vrtx2.x = x;
+      vrtx2.y = y;
+      break;
+    }
+    return false;
+  }
+
+  bool onMouseClick(int x, int y) {
+    switch (state) {
+    case RectState::SelectingVrtx1:
+      vrtx1.x = x;
+      vrtx1.y = y;
+      vrtx2.x = x;
+      vrtx2.y = y;
+      break;
+    case RectState::Done:
+      break;
+    case RectState::SelectingVrtx2:
+      vrtx2.x = x;
+      vrtx2.y = y;
+      break;
+    }
+    stateMachine(true);
+    return state == RectState::Done;
+  }
+
 };
 
-typedef struct {
-  int x;
-  int y;
-} Point;
 
 enum class LineState { SelectingStartNode, SelectingEndNode, Done };
-
-void deployLine(Point start, Point end,
-                std::function<void(int, int, const Color &)> putPixel) {
-  int x, y, dx, dy, d, incE, incNE, _dx, _dy;
-  // ajustamos el punto inicial y terminal a conveniencia para usar
-  // el caso base (una linea de entre 0 a 45 grados)
-  Point _start{0, 0};
-  Point _end{end.x - start.x, end.y - start.y};
-  // realizamos transformaciones lineales a las coordendas
-  // dependiendo en que cuadrante esten
-  bool flipx = _end.x < 0;
-  bool flipy = _end.y < 0;
-  bool flipcoords = std::abs(_end.x) < std::abs(_end.y);
-  if (flipx) {
-    _end.x = -_end.x;
-  }
-  if (flipy) {
-    _end.y = -_end.y;
-  }
-  if (flipcoords) {
-    int aux = _end.x;
-    _end.x = _end.y;
-    _end.y = aux;
-  }
-
-  dx = _end.x - _start.x;
-  dy = _end.y - _start.y;
-  d = dx - 2 * dy;
-  incE = -dy;
-  incNE = dx - dy;
-  if (dy < 0) {
-    incE = dy;
-    incNE = dx + dy;
-  }
-  x = 0;
-  y = 0;
-
-  Color color(1.0f, 1.0f, 1.0f);
-  putPixel(x, y, color);
-
-  for (; x < _end.x; x++) {
-    if (d <= 0) {
-      d += incNE;
-      y++;
-    } else {
-      d += incE;
-    }
-    int _x = x;
-    int _y = y;
-
-    // Desacemos las transformaciones lineales
-    // se tienen que deshacer en el orden inverso
-    if (flipcoords) {
-      int aux = _x;
-      _x = _y;
-      _y = aux;
-    }
-    if (flipx) {
-      _x = -_x;
-    }
-    if (flipy) {
-      _y = -_y;
-    }
-
-    putPixel(start.x + _x, start.y + _y, color);
-  }
-}
 
 class Line : public Figure {
 public:
@@ -210,6 +191,9 @@ public:
         currentFigure->onMouseClick(x, y);
         break;
       case ToolsType::Rect:
+        currentFigure = new Rect();
+        Figures.push_back(currentFigure);
+        currentFigure->onMouseClick(x, y);
         break;
       case ToolsType::Select:
         break;
