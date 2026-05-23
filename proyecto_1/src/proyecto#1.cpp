@@ -13,6 +13,7 @@ public:
   Point vrtx1;
   Point vrtx2;
   RectState state;
+  Color lineColor{1.0f, 1.0f, 1.0f};
 
   void stateMachine(bool goFoward) {
     switch (state) {
@@ -30,10 +31,14 @@ public:
 
   void draw(std::function<void(int, int, const Color &)> putPixel) {
     if (state != RectState::SelectingVrtx1) {
-      deployLine(Point(vrtx1.x, vrtx1.y), Point(vrtx2.x, vrtx1.y), putPixel);
-      deployLine(Point(vrtx1.x, vrtx1.y), Point(vrtx1.x, vrtx2.y), putPixel);
-      deployLine(Point(vrtx1.x, vrtx2.y), Point(vrtx2.x, vrtx2.y), putPixel);
-      deployLine(Point(vrtx2.x, vrtx1.y), Point(vrtx2.x, vrtx2.y), putPixel);
+      deployLine(Point(vrtx1.x, vrtx1.y), Point(vrtx2.x, vrtx1.y), lineColor,
+                 putPixel);
+      deployLine(Point(vrtx1.x, vrtx1.y), Point(vrtx1.x, vrtx2.y), lineColor,
+                 putPixel);
+      deployLine(Point(vrtx1.x, vrtx2.y), Point(vrtx2.x, vrtx2.y), lineColor,
+                 putPixel);
+      deployLine(Point(vrtx2.x, vrtx1.y), Point(vrtx2.x, vrtx2.y), lineColor,
+                 putPixel);
     }
   };
 
@@ -76,9 +81,10 @@ class Line : public Figure {
 public:
   FigureType type = FigureType::Line;
 
-  Point start{512, 300};
-  Point end;
+  Point vrtx1;
+  Point vrtx2;
   LineState state = LineState::SelectingStartNode;
+  Color lineColor{1.0f, 1.0f, 1.0f};
 
   void stateMachine(bool goFoward) {
     switch (state) {
@@ -99,7 +105,7 @@ public:
     if (state == LineState::SelectingStartNode) {
       return;
     }
-    deployLine(start, end, putPixel);
+    deployLine(vrtx1, vrtx2, lineColor, putPixel);
   }
 
   bool onMouseMove(int x, int y) {
@@ -108,30 +114,46 @@ public:
     case LineState::Done:
       break;
     case LineState::SelectingEndNode:
-      end.x = x;
-      end.y = y;
+      vrtx2.x = x;
+      vrtx2.y = y;
       break;
     }
+
     return false;
   }
 
   bool onMouseClick(int x, int y) {
     switch (state) {
     case LineState::SelectingStartNode:
-      start.x = x;
-      start.y = y;
-      end.x = x;
-      end.y = y;
+      vrtx1.x = x;
+      vrtx1.y = y;
+      vrtx2.x = x;
+      vrtx2.y = y;
       break;
     case LineState::Done:
       break;
     case LineState::SelectingEndNode:
-      end.x = x;
-      end.y = y;
+      vrtx2.x = x;
+      vrtx2.y = y;
       break;
     }
     stateMachine(true);
     return state == LineState::Done;
+  }
+  bool isMouseOver(int x, int y) {
+    int a, b, c;
+    a = vrtx1.y - vrtx2.y;            // -dy
+    b = vrtx2.x - vrtx1.x;            // dx
+    c = -vrtx1.y * b - vrtx1.x * a;   // -y0*dx + x0*dy
+    int distance = std::abs(a * x + b * y + c); // x*-dy + y*dx - y0*dx + x0*dy
+
+    if(distance < 3000) {
+      lineColor = Color{0.2f, 0.2f, 1.0f};
+    } else {
+      lineColor = Color{1.0f, 1.0f, 1.0f};
+    }
+
+    return distance < 3000;
   }
 };
 
@@ -142,6 +164,7 @@ public:
   Point vrtx1;
   Point vrtx2;
   ElipceState state;
+  Color lineColor{1.0f, 1.0f, 1.0f};
 
   void stateMachine(bool goFoward) {
     switch (state) {
@@ -189,8 +212,7 @@ public:
     x = 0;
     y = b;
     d = b * (4 * b - 4 * a * a) + a * a;
-    Color c(1.0f, 1.0f, 1.0f);
-    drawElipcePoints(x, y, c, centerx, centery, flipcoords, putPixel);
+    drawElipcePoints(x, y, lineColor, centerx, centery, flipcoords, putPixel);
     while (b * b * 2 * (x + 1) < a * a * (2 * y - 1)) {
       if (d < 0) {
         d += 4 * (b * b * (2 * x + 3));
@@ -199,7 +221,7 @@ public:
         y--;
       }
       x++;
-      drawElipcePoints(x, y, c, centerx, centery, flipcoords, putPixel);
+      drawElipcePoints(x, y, lineColor, centerx, centery, flipcoords, putPixel);
     }
     // Modalidad 2
     while (y > 0) {
@@ -210,7 +232,7 @@ public:
         d += 4 * a * a * (-2 * y + 3);
       }
       y--;
-      drawElipcePoints(x, y, c, centerx, centery, flipcoords, putPixel);
+      drawElipcePoints(x, y, lineColor, centerx, centery, flipcoords, putPixel);
     }
   };
   bool onMouseMove(int x, int y) {
@@ -268,7 +290,11 @@ public:
   // The list of figures
   std::vector<Figure *> Figures{};
 
+  // saves which tool the user is using
   ToolsType currentTool = ToolsType::Line;
+
+  // is hover
+  bool isHover = false;
 
   void setup() override {
     clear(colorFondo);
@@ -324,6 +350,13 @@ public:
     if (x >= WindowWidth - ToolsWindowWidth) {
       return;
     }
+    isHover = false;
+    if (currentTool == ToolsType::Select) {
+      for (Figure *f : Figures) {
+        isHover |= f->isMouseOver(x, y);
+      }
+    }
+
     if (currentFigure != nullptr) {
       currentFigure->onMouseMove(x, y);
     }
@@ -369,8 +402,14 @@ public:
     ImGui::SetNextWindowPos(ImVec2(WindowWidth - ToolsWindowWidth, 0));
     ImGui::SetNextWindowSize(ImVec2(ToolsWindowWidth, WindowHeight));
 
-    // Begin
+    // Mouse configuration
+    if(isHover) {
+      ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
+    }else {
+      ImGui::SetMouseCursor(ImGuiMouseCursor_Arrow);
+    }
 
+    // Begin
     ImGui::Begin("Herramientas", NULL, window_flags);
     ImGui::Text("FPS: %.1f", ImGui::GetIO().Framerate);
     ImGui::Separator();
