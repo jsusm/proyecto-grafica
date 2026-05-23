@@ -31,14 +31,7 @@ public:
 
   void draw(std::function<void(int, int, const Color &)> putPixel) {
     if (state != RectState::SelectingVrtx1) {
-      deployLine(Point(vrtx1.x, vrtx1.y), Point(vrtx2.x, vrtx1.y), lineColor,
-                 putPixel);
-      deployLine(Point(vrtx1.x, vrtx1.y), Point(vrtx1.x, vrtx2.y), lineColor,
-                 putPixel);
-      deployLine(Point(vrtx1.x, vrtx2.y), Point(vrtx2.x, vrtx2.y), lineColor,
-                 putPixel);
-      deployLine(Point(vrtx2.x, vrtx1.y), Point(vrtx2.x, vrtx2.y), lineColor,
-                 putPixel);
+      deploySquare(vrtx1, vrtx2, lineColor, putPixel);
     }
   };
 
@@ -180,59 +173,9 @@ public:
     }
   }
 
-  void drawElipcePoints(int x, int y, const Color &c, int centerx, int centery,
-                        int flipcoords,
-                        std::function<void(int, int, const Color &)> putPixel) {
-
-    if (flipcoords) {
-      int aux = x;
-      x = y;
-      y = aux;
-    }
-    putPixel(centerx + x, centery + y, c);
-    putPixel(centerx + x, centery - y, c);
-    putPixel(centerx - x, centery - y, c);
-    putPixel(centerx - x, centery + y, c);
-  }
-
   void draw(std::function<void(int, int, const Color &)> putPixel) {
-    int centerx = (vrtx2.x + vrtx1.x) / 2;
-    int centery = (vrtx2.y + vrtx1.y) / 2;
-    int a = std::abs(vrtx1.x - vrtx2.x) / 2;
-    int b = std::abs(vrtx1.y - vrtx2.y) / 2;
-    bool flipcoords = false;
-    if (a < b) {
-      flipcoords = true;
-      int aux = a;
-      a = b;
-      b = aux;
-    }
-    int x, y, d;
-    // Modalidad 1
-    x = 0;
-    y = b;
-    d = b * (4 * b - 4 * a * a) + a * a;
-    drawElipcePoints(x, y, lineColor, centerx, centery, flipcoords, putPixel);
-    while (b * b * 2 * (x + 1) < a * a * (2 * y - 1)) {
-      if (d < 0) {
-        d += 4 * (b * b * (2 * x + 3));
-      } else {
-        d += 4 * (b * b * (2 * x + 3) + a * a * (-2 * y + 2));
-        y--;
-      }
-      x++;
-      drawElipcePoints(x, y, lineColor, centerx, centery, flipcoords, putPixel);
-    }
-    // Modalidad 2
-    while (y > 0) {
-      if (d < 0) {
-        d += 4 * (b * b * (2 * x + 2) + a * a * (-2 * y + 3));
-        x++;
-      } else {
-        d += 4 * a * a * (-2 * y + 3);
-      }
-      y--;
-      drawElipcePoints(x, y, lineColor, centerx, centery, flipcoords, putPixel);
+    if(state != ElipceState::SelectingVrtx1){
+      deployElipce(vrtx1, vrtx2, lineColor, putPixel);
     }
   };
   bool onMouseMove(int x, int y) {
@@ -264,11 +207,73 @@ public:
       break;
     }
     stateMachine(true);
+    printf("vrtx1.x: %d, vrtx1.y: %d, vrtx2.x: %d, vrtx2.y: %d\n", vrtx1.x, vrtx1.y, vrtx2.x, vrtx2.y);
     return state == ElipceState::Done;
   }
 };
 
-enum class ToolsType { Line, Rect, Elipce, Select };
+enum class CircleState { SelectingVrtx1, SelectingVrtx2, Done };
+
+class Circle : public Figure {
+public:
+  Point vrtx1;
+  Point vrtx2;
+  CircleState state;
+  Color lineColor{1.0f, 1.0f, 1.0f};
+
+  void stateMachine(bool goFoward) {
+    switch (state) {
+    case CircleState::SelectingVrtx1:
+      state = CircleState::SelectingVrtx2;
+      break;
+    case CircleState::SelectingVrtx2:
+      state = CircleState::Done;
+      break;
+    case CircleState::Done:
+      state = CircleState::Done;
+      break;
+    }
+  }
+
+  void draw(std::function<void(int, int, const Color &)> putPixel) {
+    if(state != CircleState::SelectingVrtx1){
+      deployCircle(vrtx1, vrtx2, lineColor, putPixel);
+    }
+  };
+  bool onMouseMove(int x, int y) {
+    switch (state) {
+    case CircleState::SelectingVrtx1:
+    case CircleState::Done:
+      break;
+    case CircleState::SelectingVrtx2:
+      vrtx2.x = x;
+      vrtx2.y = y;
+      break;
+    }
+    return false;
+  }
+
+  bool onMouseClick(int x, int y) {
+    switch (state) {
+    case CircleState::SelectingVrtx1:
+      vrtx1.x = x;
+      vrtx1.y = y;
+      vrtx2.x = x;
+      vrtx2.y = y;
+      break;
+    case CircleState::Done:
+      break;
+    case CircleState::SelectingVrtx2:
+      vrtx2.x = x;
+      vrtx2.y = y;
+      break;
+    }
+    stateMachine(true);
+    return state == CircleState::Done;
+  }
+};
+
+enum class ToolsType { Line, Rect, Elipce, Select, Circle };
 
 int WindowWidth = 1020;
 int WindowHeight = 630;
@@ -336,6 +341,11 @@ public:
         currentFigure = new Elipce();
         Figures.push_back(currentFigure);
         currentFigure->onMouseClick(x, y);
+      case ToolsType::Circle:
+        currentFigure = new Circle();
+        Figures.push_back(currentFigure);
+        currentFigure->onMouseClick(x, y);
+        break;
       }
     }
   }
@@ -387,6 +397,10 @@ public:
     ImGui::SameLine();
     if (ImGui::Button("Select")) {
       currentTool = ToolsType::Select;
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Circle")) {
+      currentTool = ToolsType::Circle;
     }
   }
 
