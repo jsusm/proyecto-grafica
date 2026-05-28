@@ -89,10 +89,10 @@ void drawCirclePoints(int x, int y, int centerx, int centery, const Color &color
   putPixel(centerx - y, centery - x, color);
 }
 
-void deployCircle(Point center, Point radious, const Color &color, std::function<void (int, int, const Color &)> putPixel){
-  int dx = center.x - radious.x;
-  int dy = center.y - radious.y;
-  int r = (int)std::sqrt(dx * dx + dy * dy);
+void deployCircle(Point center, int radious, const Color &color, std::function<void (int, int, const Color &)> putPixel){
+  int dx = center.x;
+  int dy = center.y;
+  int r = radious;
 
   int x = 0;
   int y = r;

@@ -14,9 +14,9 @@ public:
   virtual void draw(std::function<void(int, int, const Color &)> putPixel) {};
   virtual void select() {}
   virtual void unselect() {}
-  virtual bool onMouseMove(int, int) { return false; }
-  virtual bool onMouseClick(int, int) { return false; }
-  virtual bool isMouseOver(int, int) { return false; }
+  virtual void onMouseMove(int, int) { }
+  virtual void onMouseButtonDown(int, int) { }
+  virtual void onMouseButtonUp(int, int) { }
 };
 
 void deployLine(Point start, Point end, const Color & color, std::function<void(int, int, const Color &)> putPixel);
@@ -25,4 +25,4 @@ void deploySquare(Point vrtx1, Point vrtx2, const Color & color, std::function<v
 
 void deployElipce(Point vrtx1, Point vrtx2, const Color & color, std::function<void(int, int, const Color &)> putPixel);
 
-void deployCircle(Point center, Point radious, const Color & color, std::function<void(int, int, const Color &)> putPixel);
+void deployCircle(Point center, int radious, const Color & color, std::function<void(int, int, const Color &)> putPixel);

@@ -6,277 +6,221 @@
 #include <functional>
 #include <iostream>
 
-enum class RectState { SelectingVrtx1, SelectingVrtx2, Done };
-
-class Rect : public Figure {
-public:
-  Point vrtx1;
-  Point vrtx2;
-  RectState state;
-  Color lineColor{1.0f, 1.0f, 1.0f};
-
-  void stateMachine(bool goFoward) {
-    switch (state) {
-    case RectState::SelectingVrtx1:
-      state = RectState::SelectingVrtx2;
-      break;
-    case RectState::SelectingVrtx2:
-      state = RectState::Done;
-      break;
-    case RectState::Done:
-      state = RectState::Done;
-      break;
-    }
-  }
-
-  void draw(std::function<void(int, int, const Color &)> putPixel) {
-    if (state != RectState::SelectingVrtx1) {
-      deploySquare(vrtx1, vrtx2, lineColor, putPixel);
-    }
-  };
-
-  bool onMouseMove(int x, int y) {
-    switch (state) {
-    case RectState::SelectingVrtx1:
-    case RectState::Done:
-      break;
-    case RectState::SelectingVrtx2:
-      vrtx2.x = x;
-      vrtx2.y = y;
-      break;
-    }
-    return false;
-  }
-
-  bool onMouseClick(int x, int y) {
-    switch (state) {
-    case RectState::SelectingVrtx1:
-      vrtx1.x = x;
-      vrtx1.y = y;
-      vrtx2.x = x;
-      vrtx2.y = y;
-      break;
-    case RectState::Done:
-      break;
-    case RectState::SelectingVrtx2:
-      vrtx2.x = x;
-      vrtx2.y = y;
-      break;
-    }
-    stateMachine(true);
-    return state == RectState::Done;
-  }
-};
-
-enum class LineState { SelectingStartNode, SelectingEndNode, Done };
+enum class LineState { SelectVertices, Selected, DragVertex, Unselected, DragFigure };
 
 class Line : public Figure {
 public:
   FigureType type = FigureType::Line;
 
-  Point vrtx1;
-  Point vrtx2;
-  LineState state = LineState::SelectingStartNode;
+  std::vector<Point> vrtxs;
+  std::vector<bool> vrtxHover{false, false};
+  LineState state = LineState::SelectVertices;
+  int vrtxRadious = 4;
+  int maxVertices = 2;
+  int selectedVrtx = 0;
   Color lineColor{1.0f, 1.0f, 1.0f};
+  bool hoverCenterVrtx = false;
+  Point centerVrtx;
+  Color selectedColor = Color(0.1f, 1.0f, 0.1f);
+  Point dragOrigin;
 
-  void stateMachine(bool goFoward) {
+  void stateMachine(int branch) {
     switch (state) {
-    case LineState::SelectingStartNode:
-      state = LineState::SelectingEndNode;
+    case LineState::SelectVertices:
+      if (vrtxs.size() == maxVertices) {
+        state = LineState::Selected;
+      }
       break;
-    case LineState::SelectingEndNode:
-      state = LineState::Done;
+    case LineState::DragVertex:
+      state = LineState::Selected;
       break;
-    case LineState::Done:
-      state = LineState::Done;
+    case LineState::Selected:
+      if (branch == 1) {
+        state = LineState::DragVertex;
+      }
+      else if(branch == 2) {
+        state = LineState::DragFigure;
+      }
+      else {
+        state = LineState::Unselected;
+      }
+      break;
+    case LineState::DragFigure:
+      state=LineState::Selected;
+      break;
+    case LineState::Unselected:
+      state = LineState::Selected;
       break;
     }
+  }
+
+  Line() {
+    vrtxs.push_back(Point());
+    vrtxs.push_back(Point());
   }
 
   void draw(std::function<void(int, int, const Color &)> putPixel) {
     // do not show the line if we are selecting the starting node
-    if (state == LineState::SelectingStartNode) {
+    if (vrtxs.size() == 0) {
       return;
     }
-    deployLine(vrtx1, vrtx2, lineColor, putPixel);
+
+    deployLine(vrtxs[0], vrtxs[1], lineColor, putPixel);
+
+    // Show control points
+    if (state == LineState::Selected) {
+      for (int i = 0; i < vrtxs.size(); i++) {
+        if (vrtxHover[i]) {
+          deployCircle(vrtxs[i], vrtxRadious, selectedColor, putPixel);
+        } else {
+          deployCircle(vrtxs[i], vrtxRadious, lineColor, putPixel);
+        }
+      }
+      if (hoverCenterVrtx) {
+        deployCircle(centerVrtx, 4, selectedColor, putPixel);
+      } else {
+        deployCircle(centerVrtx, 4, lineColor, putPixel);
+      }
+    }
   }
 
-  bool onMouseMove(int x, int y) {
+  bool mouseInVrtx(Point vrtx, int x, int y) {
+    int dx = vrtx.x - x;
+    int dy = vrtx.y - y;
+    int distanceSquared = dx * dx + dy * dy;
+    return distanceSquared <= vrtxRadious * vrtxRadious;
+  }
+
+  void updateVrtxHover(int x, int y) {
+    for (int i = 0; i < vrtxs.size(); i++) {
+      vrtxHover[i] = mouseInVrtx(vrtxs[i], x, y);
+    }
+    hoverCenterVrtx = mouseInVrtx(centerVrtx, x, y);
+  }
+
+  void onMouseMove(int x, int y) {
     switch (state) {
-    case LineState::SelectingStartNode:
-    case LineState::Done:
+    case LineState::Selected:
+      updateVrtxHover(x, y);
       break;
-    case LineState::SelectingEndNode:
-      vrtx2.x = x;
-      vrtx2.y = y;
+
+    case LineState::Unselected:
+      break;
+
+    case LineState::SelectVertices:
+      vrtxs[selectedVrtx].x = x;
+      vrtxs[selectedVrtx].y = y;
+      break;
+
+    case LineState::DragVertex:
+      vrtxs[selectedVrtx].x = x;
+      vrtxs[selectedVrtx].y = y;
+      break;
+
+    case LineState::DragFigure:
+      updateVrtxHover(x, y);
+      int dx = x - dragOrigin.x;
+      int dy = y - dragOrigin.y;
+      for(int i = 0; i < vrtxs.size(); i++){
+        vrtxs[i].x += dx;
+        vrtxs[i].y += dy;
+      }
+      dragOrigin.x = x;
+      dragOrigin.y = y;
       break;
     }
-
-    return false;
   }
 
-  bool onMouseClick(int x, int y) {
+  void updateCenterPoint() {
+    int x = 0;
+    int y = 0;
+    for (Point p : vrtxs) {
+      x += p.x;
+      y += p.y;
+    }
+    x /= vrtxs.size();
+    y /= vrtxs.size();
+    centerVrtx.x = x;
+    centerVrtx.y = y;
+  }
+
+  void onMouseButtonDown(int x, int y) {
+    updateVrtxHover(x, y);
     switch (state) {
-    case LineState::SelectingStartNode:
-      vrtx1.x = x;
-      vrtx1.y = y;
-      vrtx2.x = x;
-      vrtx2.y = y;
+    case LineState::SelectVertices:
+      for (int i = selectedVrtx; i < vrtxs.size(); i++) {
+        vrtxs[i].x = x;
+        vrtxs[i].y = y;
+      }
+      selectedVrtx++;
+      if (selectedVrtx == maxVertices) {
+        updateCenterPoint();
+        stateMachine(0);
+      }
       break;
-    case LineState::Done:
+    case LineState::Selected:
+      for (int i = 0; i < vrtxs.size(); i++) {
+        if (vrtxHover[i]){
+          selectedVrtx = i;
+          stateMachine(1);
+          break;
+        }
+      }
+      if(hoverCenterVrtx) {
+        stateMachine(2);
+        dragOrigin.x = x;
+        dragOrigin.y = y;
+        break;
+      }
       break;
-    case LineState::SelectingEndNode:
-      vrtx2.x = x;
-      vrtx2.y = y;
+    case LineState::DragFigure:
+      break;
+    case LineState::Unselected:
       break;
     }
-    stateMachine(true);
-    return state == LineState::Done;
   }
-  bool isMouseOver(int x, int y) {
+
+  void onMouseButtonUp(int x, int y) {
+    switch (state) {
+    case LineState::Selected:
+      break;
+    case LineState::DragVertex:
+      vrtxs[selectedVrtx].x = x;
+      vrtxs[selectedVrtx].y = y;
+      updateCenterPoint();
+      stateMachine(0);
+      break;
+    case LineState::DragFigure:
+      stateMachine(0);
+      updateCenterPoint();
+      updateVrtxHover(x, y);
+      break;
+
+    case LineState::Unselected:
+      break;
+    }
+  }
+
+  void isMouseOver(int x, int y) {
     int a, b, c;
-    a = vrtx1.y - vrtx2.y;            // -dy
-    b = vrtx2.x - vrtx1.x;            // dx
-    c = -vrtx1.y * b - vrtx1.x * a;   // -y0*dx + x0*dy
-    int distance = std::abs(a * x + b * y + c); // x*-dy + y*dx - y0*dx + x0*dy
-
-    if(distance < 3000) {
-      lineColor = Color{0.2f, 0.2f, 1.0f};
-    } else {
-      lineColor = Color{1.0f, 1.0f, 1.0f};
-    }
-
-    return distance < 3000;
+    // a = vrtx1.y - vrtx2.y;                      // -dy
+    // b = vrtx2.x - vrtx1.x;                      // dx
+    // c = -vrtx1.y * b - vrtx1.x * a;             // -y0*dx + x0*dy
+    // int distance = std::abs(a * x + b * y + c); // x*-dy + y*dx - y0*dx +
+    // x0*dy
+    //
+    // if (distance < 3000) {
+    //   lineColor = Color{0.2f, 0.2f, 1.0f};
+    // } else {
+    //   lineColor = Color{1.0f, 1.0f, 1.0f};
+    // }
   }
 };
 
-enum class ElipceState { SelectingVrtx1, SelectingVrtx2, Done };
+enum class ToolsType { Line, Select };
 
-class Elipce : public Figure {
-public:
-  Point vrtx1;
-  Point vrtx2;
-  ElipceState state;
-  Color lineColor{1.0f, 1.0f, 1.0f};
-
-  void stateMachine(bool goFoward) {
-    switch (state) {
-    case ElipceState::SelectingVrtx1:
-      state = ElipceState::SelectingVrtx2;
-      break;
-    case ElipceState::SelectingVrtx2:
-      state = ElipceState::Done;
-      break;
-    case ElipceState::Done:
-      state = ElipceState::Done;
-      break;
-    }
-  }
-
-  void draw(std::function<void(int, int, const Color &)> putPixel) {
-    if(state != ElipceState::SelectingVrtx1){
-      deployElipce(vrtx1, vrtx2, lineColor, putPixel);
-    }
-  };
-  bool onMouseMove(int x, int y) {
-    switch (state) {
-    case ElipceState::SelectingVrtx1:
-    case ElipceState::Done:
-      break;
-    case ElipceState::SelectingVrtx2:
-      vrtx2.x = x;
-      vrtx2.y = y;
-      break;
-    }
-    return false;
-  }
-
-  bool onMouseClick(int x, int y) {
-    switch (state) {
-    case ElipceState::SelectingVrtx1:
-      vrtx1.x = x;
-      vrtx1.y = y;
-      vrtx2.x = x;
-      vrtx2.y = y;
-      break;
-    case ElipceState::Done:
-      break;
-    case ElipceState::SelectingVrtx2:
-      vrtx2.x = x;
-      vrtx2.y = y;
-      break;
-    }
-    stateMachine(true);
-    printf("vrtx1.x: %d, vrtx1.y: %d, vrtx2.x: %d, vrtx2.y: %d\n", vrtx1.x, vrtx1.y, vrtx2.x, vrtx2.y);
-    return state == ElipceState::Done;
-  }
-};
-
-enum class CircleState { SelectingVrtx1, SelectingVrtx2, Done };
-
-class Circle : public Figure {
-public:
-  Point vrtx1;
-  Point vrtx2;
-  CircleState state;
-  Color lineColor{1.0f, 1.0f, 1.0f};
-
-  void stateMachine(bool goFoward) {
-    switch (state) {
-    case CircleState::SelectingVrtx1:
-      state = CircleState::SelectingVrtx2;
-      break;
-    case CircleState::SelectingVrtx2:
-      state = CircleState::Done;
-      break;
-    case CircleState::Done:
-      state = CircleState::Done;
-      break;
-    }
-  }
-
-  void draw(std::function<void(int, int, const Color &)> putPixel) {
-    if(state != CircleState::SelectingVrtx1){
-      deployCircle(vrtx1, vrtx2, lineColor, putPixel);
-    }
-  };
-  bool onMouseMove(int x, int y) {
-    switch (state) {
-    case CircleState::SelectingVrtx1:
-    case CircleState::Done:
-      break;
-    case CircleState::SelectingVrtx2:
-      vrtx2.x = x;
-      vrtx2.y = y;
-      break;
-    }
-    return false;
-  }
-
-  bool onMouseClick(int x, int y) {
-    switch (state) {
-    case CircleState::SelectingVrtx1:
-      vrtx1.x = x;
-      vrtx1.y = y;
-      vrtx2.x = x;
-      vrtx2.y = y;
-      break;
-    case CircleState::Done:
-      break;
-    case CircleState::SelectingVrtx2:
-      vrtx2.x = x;
-      vrtx2.y = y;
-      break;
-    }
-    stateMachine(true);
-    return state == CircleState::Done;
-  }
-};
-
-enum class ToolsType { Line, Rect, Elipce, Select, Circle };
-
-int WindowWidth = 1020;
-int WindowHeight = 630;
+int WindowWidth = 1400;
+int WindowHeight = 720;
 int ToolsWindowWidth = 300;
 
 class proyecto1 : public Engine2D {
@@ -287,13 +231,13 @@ private:
 
 public:
   proyecto1()
-      : Engine2D(1020, 630,
+      : Engine2D(1400, 720,
                  "Proyecto #1 - Gestion y Despliegue de Primitivas") {}
 
   // points to the figure currently focused
   Figure *currentFigure = nullptr;
   // The list of figures
-  std::vector<Figure *> Figures{};
+  std::vector<Figure *> figures{};
 
   // saves which tool the user is using
   ToolsType currentTool = ToolsType::Line;
@@ -307,66 +251,41 @@ public:
   }
   // Eventos
   void onkeyDown(int key) override {
+    if (key == GLFW_KEY_Q) {
+      glfwSetWindowShouldClose(window, GLFW_TRUE);
+    }
     if (key == GLFW_KEY_SPACE) {
       clear(colorFondo);
     }
   }
   void onMouseButtonDown(int button, double x, double y) override {
-    // if (button == GLFW_MOUSE_BUTTON_LEFT) {
-    //     dibujando = true;
-    // }
+    if (x >= WindowWidth - ToolsWindowWidth) {
+      return;
+    }
+    if (currentFigure == nullptr) {
+      if (currentTool == ToolsType::Line) {
+        currentFigure = new Line();
+        figures.push_back(currentFigure);
+        currentFigure->onMouseButtonDown(x, y);
+      }
+    } else {
+      currentFigure->onMouseButtonDown(x, y);
+    }
+  }
+  void onMouseButtonUp(int button, double x, double y) override {
     if (x >= WindowWidth - ToolsWindowWidth) {
       return;
     }
     if (currentFigure != nullptr) {
-      bool done = currentFigure->onMouseClick(x, y);
-      if (done) {
-        currentFigure = nullptr;
-      }
-    } else {
-      switch (currentTool) {
-      case ToolsType::Line:
-        currentFigure = new Line();
-        Figures.push_back(currentFigure);
-        currentFigure->onMouseClick(x, y);
-        break;
-      case ToolsType::Rect:
-        currentFigure = new Rect();
-        Figures.push_back(currentFigure);
-        currentFigure->onMouseClick(x, y);
-        break;
-      case ToolsType::Select:
-        break;
-      case ToolsType::Elipce:
-        currentFigure = new Elipce();
-        Figures.push_back(currentFigure);
-        currentFigure->onMouseClick(x, y);
-      case ToolsType::Circle:
-        currentFigure = new Circle();
-        Figures.push_back(currentFigure);
-        currentFigure->onMouseClick(x, y);
-        break;
-      }
+      currentFigure->onMouseButtonUp(x, y);
     }
   }
-  void onMouseButtonUp(int button, double x, double y) override {
-    // if (button == GLFW_MOUSE_BUTTON_LEFT) {
-    //   dibujando = false;
-    // }
-  }
-  // Evento de movimiento continuo
+
   void onMouseMove(double x, double y) override {
     // do not register the event if the mouse is over the tools window
     if (x >= WindowWidth - ToolsWindowWidth) {
       return;
     }
-    isHover = false;
-    if (currentTool == ToolsType::Select) {
-      for (Figure *f : Figures) {
-        isHover |= f->isMouseOver(x, y);
-      }
-    }
-
     if (currentFigure != nullptr) {
       currentFigure->onMouseMove(x, y);
     }
@@ -374,11 +293,10 @@ public:
 
   void update(float deltaTime) override {
     clear(Color(0.1f, 0.1f, 0.1f));
-    for (Figure *f : Figures) {
+    for (Figure *f : figures) {
       f->draw(
           [this](int x, int y, const Color &color) { putPixel(x, y, color); });
     }
-    // Aquí irían cosas que cambian automáticamente con el tiempo
   }
 
   void toolsSection() {
@@ -387,20 +305,8 @@ public:
       currentTool = ToolsType::Line;
     }
     ImGui::SameLine();
-    if (ImGui::Button("Rect")) {
-      currentTool = ToolsType::Rect;
-    }
-    ImGui::SameLine();
-    if (ImGui::Button("Elipce")) {
-      currentTool = ToolsType::Elipce;
-    }
-    ImGui::SameLine();
     if (ImGui::Button("Select")) {
       currentTool = ToolsType::Select;
-    }
-    ImGui::SameLine();
-    if (ImGui::Button("Circle")) {
-      currentTool = ToolsType::Circle;
     }
   }
 
@@ -417,9 +323,9 @@ public:
     ImGui::SetNextWindowSize(ImVec2(ToolsWindowWidth, WindowHeight));
 
     // Mouse configuration
-    if(isHover) {
+    if (isHover) {
       ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
-    }else {
+    } else {
       ImGui::SetMouseCursor(ImGuiMouseCursor_Arrow);
     }
 
@@ -429,14 +335,6 @@ public:
     ImGui::Separator();
     toolsSection();
     ImGui::Separator();
-    float col[3] = {colorPincel.r, colorPincel.g, colorPincel.b};
-    if (ImGui::ColorEdit3("Color Pincel", col)) {
-      colorPincel.r = col[0];
-      colorPincel.g = col[1];
-      colorPincel.b = col[2];
-    }
-    ImGui::Text("Manten click izquierdo para dibujar.");
-    ImGui::Text("Presiona ESPACIO para limpiar.");
     ImGui::End();
   }
 };

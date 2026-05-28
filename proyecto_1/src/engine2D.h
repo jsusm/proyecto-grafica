@@ -18,8 +18,7 @@ struct Color
 
 class Engine2D
 {
-private: 
-	GLFWwindow* window;
+private:
 	std::string title;
 	std::vector<Color> pixelBuffer;
 	GLuint textureID, vao,vbo, ebo, shaderProgram, vs, fs;
@@ -33,6 +32,7 @@ private:
 	static void mouseButtonCallback(GLFWwindow* window, int button, int action, int mods);
 	static void cursorPosCallback(GLFWwindow* window, double xpos, double ypos);
 protected:
+	GLFWwindow* window;
 	int width, height;
 	void putPixel(int x, int y, const Color& color);
 	void clear(const Color& color);
