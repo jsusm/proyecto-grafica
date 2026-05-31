@@ -11,6 +11,7 @@ public:
   FigureType type = FigureType::Line;
 
   Line() {
+    maxVertices = 2;
     vrtxs.push_back(Point());
     vrtxs.push_back(Point());
   }
@@ -29,7 +30,8 @@ public:
       return;
     }
 
-    if (state != FigureState::Unselected && state != FigureState::SelectVertices) {
+    if (state != FigureState::Unselected &&
+        state != FigureState::SelectVertices) {
       BoundingBox bb = getBoundingBox();
       deploySquare(bb.vrtx1, bb.vrtx2, boxColor, putPixel);
     }
@@ -60,11 +62,82 @@ public:
     c = -vrtxs[0].y * b - vrtxs[0].x * a;       // -y0*dx + x0*dy
     int distance = std::abs(a * x + b * y + c); // x*-dy + y*dx - y0*dx + x0*dy
     int tolerance = 3000;
-    mouseOver = distance < tolerance;
+    // check if mouse in in the bounding box
+    BoundingBox bb = getBoundingBox();
+    bool mouseInBB = x >= bb.vrtx1.x && x <= bb.vrtx2.x && y >= bb.vrtx1.y &&
+                     y <= bb.vrtx2.y;
+    mouseOver = distance < tolerance && mouseInBB;
   }
 };
 
-enum class ToolsType { Line, Select };
+class Rect : public Figure {
+  public:
+  Rect(){
+    maxVertices = 4;
+    vrtxs.push_back(Point());
+    vrtxs.push_back(Point());
+    vrtxs.push_back(Point());
+    vrtxs.push_back(Point());
+    vrtxHover.push_back(false);
+    vrtxHover.push_back(false);
+  }
+
+  void isMouseOver(int x, int y) {
+    BoundingBox bb = getBoundingBox();
+    int t = 2; // tolerance;
+    bool mouseInBB = x >= bb.vrtx1.x - t && x <= bb.vrtx2.x + t &&
+                     y >= bb.vrtx1.y - t && y <= bb.vrtx2.y + t;
+    int inTopLine = y <= bb.vrtx1.y + t;
+    int inBottomLine = y >= bb.vrtx2.y - t;
+    int inLeftLine = x <= bb.vrtx1.x + t;
+    int inRightLine = x >= bb.vrtx2.x - t;
+    mouseOver =
+        mouseInBB && (inTopLine || inBottomLine || inLeftLine || inRightLine);
+  }
+
+  bool onMouseButtonDown(int x, int y) {
+    bool result = Figure::onMouseButtonDown(x, y);
+    if(state == FigureState::SelectVertices && selectedVrtx == 2) {
+      // assign the other vertices with the recent two
+      stateMachine(0);
+      vrtxs[2].x = vrtxs[0].x;
+      vrtxs[2].y = vrtxs[1].y;
+      vrtxs[3].y = vrtxs[1].x;
+      vrtxs[3].y = vrtxs[0].y;
+    }
+
+    return result;
+  }
+
+  void draw(std::function<void(int, int, const Color &)> putPixel) {
+    // do not show the line if we are selecting the starting node
+    if (vrtxs.size() == 0) {
+      return;
+    }
+
+    deploySquare(vrtxs[0], vrtxs[1], lineColor, putPixel);
+
+    // Show control points
+    if (state == FigureState::Selected) {
+      for (int i = 0; i < vrtxs.size(); i++) {
+        if (vrtxHover[i]) {
+          deployCircle(vrtxs[i], vrtxRadious, selectedColor, putPixel);
+        } else {
+          deployCircle(vrtxs[i], vrtxRadious, lineColor, putPixel);
+        }
+      }
+      if (hoverCenterVrtx) {
+        deployCircle(centerVrtx, 4, selectedColor, putPixel);
+      } else {
+        deployCircle(centerVrtx, 4, lineColor, putPixel);
+      }
+    }
+  }
+
+
+};
+
+enum class ToolsType { Line, Select, Rect };
 
 int WindowWidth = 1400;
 int WindowHeight = 720;
@@ -111,12 +184,21 @@ public:
     if (x >= WindowWidth - ToolsWindowWidth) {
       return;
     }
-    if (currentTool == ToolsType::Line) {
+    if (currentTool == ToolsType::Line)
+    {
       currentFigure = new Line();
       figures.push_back(currentFigure);
       currentFigure->onMouseButtonDown(x, y);
       currentTool = ToolsType::Select;
-    } else if (currentTool == ToolsType::Select) {
+    }
+    else if(currentTool == ToolsType::Rect)
+    {
+      currentFigure = new Rect();
+      figures.push_back(currentFigure);
+      currentFigure->onMouseButtonDown(x, y);
+      currentTool = ToolsType::Select;
+    }
+    else if (currentTool == ToolsType::Select) {
       if (currentFigure == nullptr) {
         for (Figure *f : figures) {
           f->onMouseButtonDown(x, y);
@@ -190,7 +272,15 @@ public:
     ImGui::SeparatorText("Herramientas");
     if (ImGui::Button("Line")) {
       currentTool = ToolsType::Line;
-      if(currentFigure!=nullptr){
+      if (currentFigure != nullptr) {
+        currentFigure->unselect();
+        currentFigure = nullptr;
+      }
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Rect")) {
+      currentTool = ToolsType::Rect;
+      if (currentFigure != nullptr) {
         currentFigure->unselect();
         currentFigure = nullptr;
       }

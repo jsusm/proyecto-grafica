@@ -120,7 +120,7 @@ public:
     }
   }
 
-  bool onMouseMove(int x, int y) {
+  virtual bool onMouseMove(int x, int y) {
     switch (state) {
     case FigureState::Selected:
       isMouseOver(x, y);
@@ -129,6 +129,11 @@ public:
 
     case FigureState::Unselected:
       isMouseOver(x, y);
+      if(mouseOver){
+        lineColor = Color(1,0,1);
+      }else {
+        lineColor = Color(1,1,1);
+      }
       break;
 
     case FigureState::SelectVertices:
@@ -159,7 +164,7 @@ public:
     return false;
   }
 
-  bool onMouseButtonDown(int x, int y) {
+  virtual bool onMouseButtonDown(int x, int y) {
     isMouseOver(x, y);
     updateVrtxHover(x, y);
     switch (state) {
@@ -202,7 +207,7 @@ public:
     return false;
   }
 
-  bool onMouseButtonUp(int x, int y) {
+  virtual bool onMouseButtonUp(int x, int y) {
     switch (state) {
     case FigureState::Selected:
       break;
