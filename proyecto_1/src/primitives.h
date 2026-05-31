@@ -94,7 +94,20 @@ protected:
     centerVrtx.y = y;
   }
 
-  virtual BoundingBox getBoundingBox() { return BoundingBox(); }
+  virtual BoundingBox getBoundingBox() {
+    // get min x and y
+    int minX = vrtxs[0].x;
+    int minY = vrtxs[0].y;
+    int maxX = vrtxs[0].x;
+    int maxY = vrtxs[0].y;
+    for(auto &p: vrtxs){
+      minX = std::min(minX, p.x);
+      minY = std::min(minY, p.y);
+      maxX = std::max(maxX, p.x);
+      maxY = std::max(maxY, p.y);
+    }
+    return BoundingBox(Point(minX, minY), Point(maxX, maxY));
+  }
   virtual void isMouseOver(int x, int y) {}
 
 public:

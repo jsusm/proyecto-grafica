@@ -1,11 +1,41 @@
 ﻿#include "engine2D.h"
 #include "imgui.h"
 #include "primitives.h"
+#include <algorithm>
 #include <cstdio>
 #include <cstdlib>
 #include <functional>
 #include <iostream>
 #include <memory>
+
+bool isMouseOverLine(Point vrtx1, Point vrtx2, int x, int y) {
+  int a, b, c;
+  a = vrtx1.y - vrtx2.y;          // -dy
+  b = vrtx2.x - vrtx1.x;          // dx
+  c = -vrtx1.y * b - vrtx1.x * a; // -y0*dx + x0*dy
+  int z = std::abs(a * x + b * y + c);
+  int tolerance = 16;
+  int maxD = std::max(std::abs(a), std::abs(b));
+
+  int minX = vrtx1.x < vrtx2.x ? vrtx1.x : vrtx2.x;
+  int minY = vrtx1.y < vrtx2.y ? vrtx1.y : vrtx2.y;
+
+  int maxX = vrtx1.x >= vrtx2.x ? vrtx1.x : vrtx2.x;
+  int maxY = vrtx1.y >= vrtx2.y ? vrtx1.y : vrtx2.y;
+
+  bool mouseInX = x >= minX && x <= maxX;
+  bool mouseInY = y >= minY && y <= maxY;
+  // if the line is too vertical or too horizontal
+  // only check the proximity through the line equation
+  if (std::abs(b) < 10) {
+    mouseInX = true;
+  }
+  if (std::abs(a) < 10) {
+    mouseInY = true;
+  }
+
+  return z < tolerance * maxD && mouseInX && mouseInY;
+}
 
 class Line : public Figure {
 public:
@@ -14,14 +44,6 @@ public:
     maxVertices = 2;
     vrtxs.resize(maxVertices);
     vrtxHover.resize(maxVertices, false);
-  }
-
-  BoundingBox getBoundingBox() {
-    Point vrtx1(vrtxs[0].x < vrtxs[1].x ? vrtxs[0].x : vrtxs[1].x,
-                vrtxs[0].y < vrtxs[1].y ? vrtxs[0].y : vrtxs[1].y);
-    Point vrtx2(vrtxs[0].x >= vrtxs[1].x ? vrtxs[0].x : vrtxs[1].x,
-                vrtxs[0].y >= vrtxs[1].y ? vrtxs[0].y : vrtxs[1].y);
-    return BoundingBox(vrtx1, vrtx2);
   }
 
   void draw(std::function<void(int, int, const Color &)> putPixel) {
@@ -56,17 +78,7 @@ public:
   }
 
   void isMouseOver(int x, int y) {
-    int a, b, c;
-    a = vrtxs[0].y - vrtxs[1].y;                // -dy
-    b = vrtxs[1].x - vrtxs[0].x;                // dx
-    c = -vrtxs[0].y * b - vrtxs[0].x * a;       // -y0*dx + x0*dy
-    int distance = std::abs(a * x + b * y + c); // x*-dy + y*dx - y0*dx + x0*dy
-    int tolerance = 3000;
-    // check if mouse in in the bounding box
-    BoundingBox bb = getBoundingBox();
-    bool mouseInBB = x >= bb.vrtx1.x && x <= bb.vrtx2.x && y >= bb.vrtx1.y &&
-                     y <= bb.vrtx2.y;
-    mouseOver = distance < tolerance && mouseInBB;
+    mouseOver = isMouseOverLine(vrtxs[0], vrtxs[1], x, y);
   }
 };
 
@@ -80,16 +92,25 @@ public:
   }
 
   void isMouseOver(int x, int y) {
-    BoundingBox bb = getBoundingBox();
-    int t = 2; // tolerance;
-    bool mouseInBB = x >= bb.vrtx1.x - t && x <= bb.vrtx2.x + t &&
-                     y >= bb.vrtx1.y - t && y <= bb.vrtx2.y + t;
-    int inTopLine = y <= bb.vrtx1.y + t;
-    int inBottomLine = y >= bb.vrtx2.y - t;
-    int inLeftLine = x <= bb.vrtx1.x + t;
-    int inRightLine = x >= bb.vrtx2.x - t;
-    mouseOver =
-        mouseInBB && (inTopLine || inBottomLine || inLeftLine || inRightLine);
+    mouseOver = isMouseOverLine(vrtxs[0], vrtxs[2], x, y) ||
+                isMouseOverLine(vrtxs[0], vrtxs[3], x, y) ||
+                isMouseOverLine(vrtxs[1], vrtxs[2], x, y) ||
+                isMouseOverLine(vrtxs[1], vrtxs[3], x, y);
+  }
+
+  void updateSecondaryPoints() {
+    vrtxs[2].x = vrtxs[0].x;
+    vrtxs[2].y = vrtxs[1].y;
+    vrtxs[3].x = vrtxs[1].x;
+    vrtxs[3].y = vrtxs[0].y;
+  }
+
+  bool onMouseMove(int x, int y) {
+    bool result = Figure::onMouseMove(x, y);
+    if (state == FigureState::SelectVertices && selectedVrtx >= 1) {
+      updateSecondaryPoints();
+    }
+    return result;
   }
 
   bool onMouseButtonDown(int x, int y) {
@@ -97,10 +118,7 @@ public:
     if (state == FigureState::SelectVertices && selectedVrtx == 2) {
       // assign the other vertices with the recent two
       stateMachine(0);
-      vrtxs[2].x = vrtxs[0].x;
-      vrtxs[2].y = vrtxs[1].y;
-      vrtxs[3].x = vrtxs[1].x;
-      vrtxs[3].y = vrtxs[0].y;
+      updateSecondaryPoints();
       updateCenterPoint();
     }
 
@@ -113,7 +131,17 @@ public:
       return;
     }
 
-    deploySquare(vrtxs[0], vrtxs[1], lineColor, putPixel);
+    if (state != FigureState::Unselected &&
+        state != FigureState::SelectVertices) {
+      BoundingBox bb = getBoundingBox();
+      deploySquare(bb.vrtx1, bb.vrtx2, boxColor, putPixel);
+    }
+
+    // deploy lines because the figure can be edited in any quadrilateral.
+    deployLine(vrtxs[0], vrtxs[3], lineColor, putPixel);
+    deployLine(vrtxs[0], vrtxs[2], lineColor, putPixel);
+    deployLine(vrtxs[1], vrtxs[3], lineColor, putPixel);
+    deployLine(vrtxs[1], vrtxs[2], lineColor, putPixel);
 
     // Show control points
     if (state == FigureState::Selected) {
