@@ -1,16 +1,19 @@
+#pragma once
+
 #include "engine2D.h"
 #include <functional>
-enum class FigureType { Line, unknow };
 
-typedef struct {
+enum class FigureType { Line, Rect, Unknown };
+
+struct Point {
   int x;
   int y;
-} Point;
+};
 
-typedef struct {
+struct BoundingBox {
   Point vrtx1;
   Point vrtx2;
-} BoundingBox;
+};
 
 enum class FigureState {
   SelectVertices,
@@ -23,8 +26,8 @@ enum class FigureState {
 class Figure {
 protected:
   std::vector<Point> vrtxs;
-  std::vector<bool> vrtxHover{false, false};
-  int vrtxRadious = 4;
+  std::vector<bool> vrtxHover;
+  int vrtxRadius = 4;
   int maxVertices = 2;
   int selectedVrtx = 0;
   Color lineColor{1.0f, 1.0f, 1.0f};
@@ -68,7 +71,7 @@ protected:
     int dx = vrtx.x - x;
     int dy = vrtx.y - y;
     int distanceSquared = dx * dx + dy * dy;
-    return distanceSquared <= vrtxRadious * vrtxRadious;
+    return distanceSquared <= vrtxRadius * vrtxRadius;
   }
 
   void updateVrtxHover(int x, int y) {
@@ -95,7 +98,9 @@ protected:
   virtual void isMouseOver(int x, int y) {}
 
 public:
-  FigureType type = FigureType::unknow;
+  virtual ~Figure() = default;
+
+  FigureType type = FigureType::Unknown;
   bool selected = false;
   bool mouseOver = false;
   virtual void draw(std::function<void(int, int, const Color &)> putPixel) {};
@@ -246,8 +251,8 @@ void deployLine(Point start, Point end, const Color &color,
 void deploySquare(Point vrtx1, Point vrtx2, const Color &color,
                   std::function<void(int, int, const Color &)> putPixel);
 
-void deployElipce(Point vrtx1, Point vrtx2, const Color &color,
+void deployEllipse(Point vrtx1, Point vrtx2, const Color &color,
                   std::function<void(int, int, const Color &)> putPixel);
 
-void deployCircle(Point center, int radious, const Color &color,
+void deployCircle(Point center, int radius, const Color &color,
                   std::function<void(int, int, const Color &)> putPixel);

@@ -5,15 +5,15 @@
 #include <cstdlib>
 #include <functional>
 #include <iostream>
+#include <memory>
 
 class Line : public Figure {
 public:
-  FigureType type = FigureType::Line;
-
   Line() {
+    type = FigureType::Line;
     maxVertices = 2;
-    vrtxs.push_back(Point());
-    vrtxs.push_back(Point());
+    vrtxs.resize(maxVertices);
+    vrtxHover.resize(maxVertices, false);
   }
 
   BoundingBox getBoundingBox() {
@@ -42,9 +42,9 @@ public:
     if (state == FigureState::Selected) {
       for (int i = 0; i < vrtxs.size(); i++) {
         if (vrtxHover[i]) {
-          deployCircle(vrtxs[i], vrtxRadious, selectedColor, putPixel);
+          deployCircle(vrtxs[i], vrtxRadius, selectedColor, putPixel);
         } else {
-          deployCircle(vrtxs[i], vrtxRadious, lineColor, putPixel);
+          deployCircle(vrtxs[i], vrtxRadius, lineColor, putPixel);
         }
       }
       if (hoverCenterVrtx) {
@@ -71,15 +71,12 @@ public:
 };
 
 class Rect : public Figure {
-  public:
-  Rect(){
+public:
+  Rect() {
+    type = FigureType::Rect;
     maxVertices = 4;
-    vrtxs.push_back(Point());
-    vrtxs.push_back(Point());
-    vrtxs.push_back(Point());
-    vrtxs.push_back(Point());
-    vrtxHover.push_back(false);
-    vrtxHover.push_back(false);
+    vrtxs.resize(maxVertices);
+    vrtxHover.resize(maxVertices, false);
   }
 
   void isMouseOver(int x, int y) {
@@ -97,13 +94,14 @@ class Rect : public Figure {
 
   bool onMouseButtonDown(int x, int y) {
     bool result = Figure::onMouseButtonDown(x, y);
-    if(state == FigureState::SelectVertices && selectedVrtx == 2) {
+    if (state == FigureState::SelectVertices && selectedVrtx == 2) {
       // assign the other vertices with the recent two
       stateMachine(0);
       vrtxs[2].x = vrtxs[0].x;
       vrtxs[2].y = vrtxs[1].y;
-      vrtxs[3].y = vrtxs[1].x;
+      vrtxs[3].x = vrtxs[1].x;
       vrtxs[3].y = vrtxs[0].y;
+      updateCenterPoint();
     }
 
     return result;
@@ -121,9 +119,9 @@ class Rect : public Figure {
     if (state == FigureState::Selected) {
       for (int i = 0; i < vrtxs.size(); i++) {
         if (vrtxHover[i]) {
-          deployCircle(vrtxs[i], vrtxRadious, selectedColor, putPixel);
+          deployCircle(vrtxs[i], vrtxRadius, selectedColor, putPixel);
         } else {
-          deployCircle(vrtxs[i], vrtxRadious, lineColor, putPixel);
+          deployCircle(vrtxs[i], vrtxRadius, lineColor, putPixel);
         }
       }
       if (hoverCenterVrtx) {
@@ -133,8 +131,6 @@ class Rect : public Figure {
       }
     }
   }
-
-
 };
 
 enum class ToolsType { Line, Select, Rect };
@@ -157,7 +153,7 @@ public:
   // points to the figure currently focused
   Figure *currentFigure = nullptr;
   // The list of figures
-  std::vector<Figure *> figures{};
+  std::vector<std::unique_ptr<Figure>> figures{};
 
   // saves which tool the user is using
   ToolsType currentTool = ToolsType::Line;
@@ -184,26 +180,22 @@ public:
     if (x >= WindowWidth - ToolsWindowWidth) {
       return;
     }
-    if (currentTool == ToolsType::Line)
-    {
-      currentFigure = new Line();
-      figures.push_back(currentFigure);
+    if (currentTool == ToolsType::Line) {
+      figures.push_back(std::make_unique<Line>());
+      currentFigure = figures.back().get();
       currentFigure->onMouseButtonDown(x, y);
       currentTool = ToolsType::Select;
-    }
-    else if(currentTool == ToolsType::Rect)
-    {
-      currentFigure = new Rect();
-      figures.push_back(currentFigure);
+    } else if (currentTool == ToolsType::Rect) {
+      figures.push_back(std::make_unique<Rect>());
+      currentFigure = figures.back().get();
       currentFigure->onMouseButtonDown(x, y);
       currentTool = ToolsType::Select;
-    }
-    else if (currentTool == ToolsType::Select) {
+    } else if (currentTool == ToolsType::Select) {
       if (currentFigure == nullptr) {
-        for (Figure *f : figures) {
+        for (auto &f : figures) {
           f->onMouseButtonDown(x, y);
           if (f->mouseOver) {
-            currentFigure = f;
+            currentFigure = f.get();
             f->select();
             break;
           }
@@ -214,10 +206,10 @@ public:
           if (!mouseReserved && !currentFigure->mouseOver) {
             currentFigure->unselect();
             currentFigure = nullptr;
-            for (Figure *f : figures) {
+            for (auto &f : figures) {
               f->onMouseButtonDown(x, y);
               if (f->mouseOver) {
-                currentFigure = f;
+                currentFigure = f.get();
                 currentFigure->select();
                 break;
               }
@@ -234,7 +226,7 @@ public:
     if (currentFigure != nullptr) {
       mouseReserved = currentFigure->onMouseButtonUp(x, y);
       if (!mouseReserved) {
-        for (Figure *f : figures) {
+        for (auto &f : figures) {
           f->onMouseButtonUp(x, y);
         }
       }
@@ -249,12 +241,12 @@ public:
     if (currentFigure != nullptr) {
       mouseReserved = currentFigure->onMouseMove(x, y);
       if (!mouseReserved) {
-        for (Figure *f : figures) {
+        for (auto &f : figures) {
           f->onMouseMove(x, y);
         }
       }
     } else {
-      for (Figure *f : figures) {
+      for (auto &f : figures) {
         f->onMouseMove(x, y);
       }
     }
@@ -262,7 +254,7 @@ public:
 
   void update(float deltaTime) override {
     clear(Color(0.1f, 0.1f, 0.1f));
-    for (Figure *f : figures) {
+    for (auto &f : figures) {
       f->draw(
           [this](int x, int y, const Color &color) { putPixel(x, y, color); });
     }

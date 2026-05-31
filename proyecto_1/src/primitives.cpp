@@ -89,10 +89,10 @@ void drawCirclePoints(int x, int y, int centerx, int centery, const Color &color
   putPixel(centerx - y, centery - x, color);
 }
 
-void deployCircle(Point center, int radious, const Color &color, std::function<void (int, int, const Color &)> putPixel){
+void deployCircle(Point center, int radius, const Color &color, std::function<void (int, int, const Color &)> putPixel){
   int dx = center.x;
   int dy = center.y;
-  int r = radious;
+  int r = radius;
 
   int x = 0;
   int y = r;
@@ -111,7 +111,7 @@ void deployCircle(Point center, int radious, const Color &color, std::function<v
   }
 }
 
-void drawElipcePoints(int x, int y, const Color &c, int centerx, int centery,
+void drawEllipsePoints(int x, int y, const Color &c, int centerx, int centery,
                       int flipcoords,
                       std::function<void(int, int, const Color &)> putPixel) {
 
@@ -126,7 +126,7 @@ void drawElipcePoints(int x, int y, const Color &c, int centerx, int centery,
   putPixel(centerx - x, centery + y, c);
 }
 
-void deployElipce(Point vrtx1, Point vrtx2, const Color &color,
+void deployEllipse(Point vrtx1, Point vrtx2, const Color &color,
                   std::function<void(int, int, const Color &)> putPixel) {
   int centerx = (vrtx2.x + vrtx1.x) / 2;
   int centery = (vrtx2.y + vrtx1.y) / 2;
@@ -144,7 +144,7 @@ void deployElipce(Point vrtx1, Point vrtx2, const Color &color,
   x = 0;
   y = b;
   d = b * (4 * b - 4 * a * a) + a * a;
-  drawElipcePoints(x, y, color, centerx, centery, flipcoords, putPixel);
+  drawEllipsePoints(x, y, color, centerx, centery, flipcoords, putPixel);
   while (b * b * 2 * (x + 1) < a * a * (2 * y - 1)) {
     if (d < 0) {
       d += 4 * (b * b * (2 * x + 3));
@@ -153,7 +153,7 @@ void deployElipce(Point vrtx1, Point vrtx2, const Color &color,
       y--;
     }
     x++;
-    drawElipcePoints(x, y, color, centerx, centery, flipcoords, putPixel);
+    drawEllipsePoints(x, y, color, centerx, centery, flipcoords, putPixel);
   }
   // Modalidad 2
   while (y > 0) {
@@ -164,6 +164,6 @@ void deployElipce(Point vrtx1, Point vrtx2, const Color &color,
       d += 4 * a * a * (-2 * y + 3);
     }
     y--;
-    drawElipcePoints(x, y, color, centerx, centery, flipcoords, putPixel);
+    drawEllipsePoints(x, y, color, centerx, centery, flipcoords, putPixel);
   }
 }
