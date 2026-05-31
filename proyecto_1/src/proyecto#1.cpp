@@ -161,7 +161,57 @@ public:
   }
 };
 
-enum class ToolsType { Line, Select, Rect };
+class Triangle : public Figure {
+public:
+  Triangle() {
+    type = FigureType::Triangle;
+    maxVertices = 3;
+    vrtxs.resize(maxVertices);
+    vrtxHover.resize(maxVertices, false);
+  }
+
+  void isMouseOver(int x, int y) {
+    mouseOver = isMouseOverLine(vrtxs[0], vrtxs[1], x, y) ||
+                isMouseOverLine(vrtxs[0], vrtxs[2], x, y) ||
+                isMouseOverLine(vrtxs[1], vrtxs[2], x, y);
+  }
+
+  void draw(std::function<void(int, int, const Color &)> putPixel) {
+    // do not show the line if we are selecting the starting node
+    if (vrtxs.size() == 0) {
+      return;
+    }
+
+    if (state != FigureState::Unselected &&
+        state != FigureState::SelectVertices) {
+      BoundingBox bb = getBoundingBox();
+      deploySquare(bb.vrtx1, bb.vrtx2, boxColor, putPixel);
+    }
+
+    // deploy lines because the figure can be edited in any quadrilateral.
+    deployLine(vrtxs[0], vrtxs[2], lineColor, putPixel);
+    deployLine(vrtxs[1], vrtxs[0], lineColor, putPixel);
+    deployLine(vrtxs[1], vrtxs[2], lineColor, putPixel);
+
+    // Show control points
+    if (state == FigureState::Selected) {
+      for (int i = 0; i < vrtxs.size(); i++) {
+        if (vrtxHover[i]) {
+          deployCircle(vrtxs[i], vrtxRadius, selectedColor, putPixel);
+        } else {
+          deployCircle(vrtxs[i], vrtxRadius, lineColor, putPixel);
+        }
+      }
+      if (hoverCenterVrtx) {
+        deployCircle(centerVrtx, 4, selectedColor, putPixel);
+      } else {
+        deployCircle(centerVrtx, 4, lineColor, putPixel);
+      }
+    }
+  }
+};
+
+enum class ToolsType { Line, Select, Triangle, Rect };
 
 int WindowWidth = 1400;
 int WindowHeight = 720;
@@ -209,16 +259,29 @@ public:
       return;
     }
     if (currentTool == ToolsType::Line) {
+
       figures.push_back(std::make_unique<Line>());
       currentFigure = figures.back().get();
       currentFigure->onMouseButtonDown(x, y);
       currentTool = ToolsType::Select;
+
     } else if (currentTool == ToolsType::Rect) {
+
       figures.push_back(std::make_unique<Rect>());
       currentFigure = figures.back().get();
       currentFigure->onMouseButtonDown(x, y);
       currentTool = ToolsType::Select;
-    } else if (currentTool == ToolsType::Select) {
+
+    } else if (currentTool == ToolsType::Triangle) {
+
+      figures.push_back(std::make_unique<Triangle>());
+      currentFigure = figures.back().get();
+      currentFigure->onMouseButtonDown(x, y);
+      currentTool = ToolsType::Select;
+
+    } else if (currentTool == ToolsType::Select)
+
+    {
       if (currentFigure == nullptr) {
         for (auto &f : figures) {
           f->onMouseButtonDown(x, y);
@@ -300,6 +363,14 @@ public:
     ImGui::SameLine();
     if (ImGui::Button("Rect")) {
       currentTool = ToolsType::Rect;
+      if (currentFigure != nullptr) {
+        currentFigure->unselect();
+        currentFigure = nullptr;
+      }
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Triangle")) {
+      currentTool = ToolsType::Triangle;
       if (currentFigure != nullptr) {
         currentFigure->unselect();
         currentFigure = nullptr;
