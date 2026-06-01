@@ -211,7 +211,72 @@ public:
   }
 };
 
-enum class ToolsType { Line, Select, Triangle, Rect };
+class Elipse : public Figure {
+public:
+  Elipse() {
+    type = FigureType::Elipse;
+    maxVertices = 2;
+    vrtxs.resize(maxVertices);
+    vrtxHover.resize(maxVertices, false);
+  }
+
+  void isMouseOver(int x, int y) {
+    int centerX = (vrtxs[0].x + vrtxs[1].x) / 2;
+    int centerY = (vrtxs[0].y + vrtxs[1].y) / 2;
+    int a = std::abs(vrtxs[0].y - vrtxs[1].y) / 2;
+    int b = std::abs(vrtxs[0].x - vrtxs[1].x) / 2;
+
+    signed long long _x = x - centerX;
+    signed long long _y = y - centerY;
+
+    int tolerance = 2;
+
+    signed long long ia = a - tolerance; // inner a
+    signed long long ib = b - tolerance; // inner b
+    signed long long oa = a + tolerance; // outer b
+    signed long long ob = b + tolerance; // outer b
+
+    printf("%lld > %lld, %lld < %lld\n", ia*ia*_x*_x + ib*ib*_y*_y, ia*ia*ib*ib, oa*oa*_x*_x + ob*ob*_y*_y, oa*oa*ob*ob);
+
+    bool isOutOfInnerCircle = (signed long long)ia*ia*_x*_x + ib*ib*_y*_y > (signed long long)ia*ia*ib*ib;
+    bool isInOuterCircle = (signed long long)oa*oa*_x*_x + ob*ob*_y*_y < (signed long long)oa*oa*ob*ob;
+    mouseOver = isOutOfInnerCircle && isInOuterCircle;
+  }
+
+  void draw(std::function<void(int, int, const Color &)> putPixel) {
+    // do not show the line if we are selecting the starting node
+    if (vrtxs.size() == 0) {
+      return;
+    }
+
+    if (state != FigureState::Unselected &&
+        state != FigureState::SelectVertices) {
+      BoundingBox bb = getBoundingBox();
+      deploySquare(bb.vrtx1, bb.vrtx2, boxColor, putPixel);
+    }
+
+    // deploy lines because the figure can be edited in any quadrilateral.
+    deployEllipse(vrtxs[0], vrtxs[1], lineColor, putPixel);
+
+    // Show control points
+    if (state == FigureState::Selected) {
+      for (int i = 0; i < vrtxs.size(); i++) {
+        if (vrtxHover[i]) {
+          deployCircle(vrtxs[i], vrtxRadius, selectedColor, putPixel);
+        } else {
+          deployCircle(vrtxs[i], vrtxRadius, lineColor, putPixel);
+        }
+      }
+      if (hoverCenterVrtx) {
+        deployCircle(centerVrtx, 4, selectedColor, putPixel);
+      } else {
+        deployCircle(centerVrtx, 4, lineColor, putPixel);
+      }
+    }
+  }
+};
+
+enum class ToolsType { Line, Select, Triangle, Elipse, Rect };
 
 int WindowWidth = 1400;
 int WindowHeight = 720;
@@ -279,9 +344,17 @@ public:
       currentFigure->onMouseButtonDown(x, y);
       currentTool = ToolsType::Select;
 
+    } else if (currentTool == ToolsType::Elipse){
+
+      figures.push_back(std::make_unique<Elipse>());
+      currentFigure = figures.back().get();
+      currentFigure->onMouseButtonDown(x, y);
+      currentTool = ToolsType::Select;
+
     } else if (currentTool == ToolsType::Select)
 
     {
+
       if (currentFigure == nullptr) {
         for (auto &f : figures) {
           f->onMouseButtonDown(x, y);
@@ -371,6 +444,14 @@ public:
     ImGui::SameLine();
     if (ImGui::Button("Triangle")) {
       currentTool = ToolsType::Triangle;
+      if (currentFigure != nullptr) {
+        currentFigure->unselect();
+        currentFigure = nullptr;
+      }
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Elipse")) {
+      currentTool = ToolsType::Elipse;
       if (currentFigure != nullptr) {
         currentFigure->unselect();
         currentFigure = nullptr;

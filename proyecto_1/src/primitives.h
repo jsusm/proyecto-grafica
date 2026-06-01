@@ -3,7 +3,7 @@
 #include "engine2D.h"
 #include <functional>
 
-enum class FigureType { Line, Rect, Triangle, Unknown };
+enum class FigureType { Line, Rect, Triangle, Elipse, Unknown };
 
 struct Point {
   int x;
