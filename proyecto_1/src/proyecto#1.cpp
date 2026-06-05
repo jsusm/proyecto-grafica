@@ -8,6 +8,9 @@
 #include <iostream>
 #include <memory>
 
+//////////////////////////////////////
+// Mouse Detection
+//////////////////////////////////////
 bool isMouseOverLine(Point vrtx1, Point vrtx2, int x, int y) {
   int a, b, c;
   a = vrtx1.y - vrtx2.y;          // -dy
@@ -37,6 +40,31 @@ bool isMouseOverLine(Point vrtx1, Point vrtx2, int x, int y) {
   return z < tolerance * maxD && mouseInX && mouseInY;
 }
 
+
+bool isMouseOverEllipse(Point vrtx1, Point vrtx2, int x, int y) {
+  int centerX = (vrtx1.x + vrtx2.x) / 2;
+  int centerY = (vrtx1.y + vrtx2.y) / 2;
+  int a = std::abs(vrtx1.y - vrtx2.y) / 2;
+  int b = std::abs(vrtx1.x - vrtx2.x) / 2;
+
+  signed long long _x = x - centerX;
+  signed long long _y = y - centerY;
+
+  int tolerance = 3;
+
+  signed long long ia = a - tolerance; // inner a
+  signed long long ib = b - tolerance; // inner b
+  signed long long oa = a + tolerance; // outer b
+  signed long long ob = b + tolerance; // outer b
+
+  bool isOutOfInnerCircle = (signed long long)ia*ia*_x*_x + ib*ib*_y*_y > (signed long long)ia*ia*ib*ib;
+  bool isInOuterCircle = (signed long long)oa*oa*_x*_x + ob*ob*_y*_y < (signed long long)oa*oa*ob*ob;
+  return isOutOfInnerCircle && isInOuterCircle;
+}
+
+//////////////////////////////////////////////////////
+// Figure classes
+//////////////////////////////////////////////////////
 class Line : public Figure {
 public:
   Line() {
@@ -221,26 +249,12 @@ public:
   }
 
   void isMouseOver(int x, int y) {
-    int centerX = (vrtxs[0].x + vrtxs[1].x) / 2;
-    int centerY = (vrtxs[0].y + vrtxs[1].y) / 2;
-    int a = std::abs(vrtxs[0].y - vrtxs[1].y) / 2;
-    int b = std::abs(vrtxs[0].x - vrtxs[1].x) / 2;
-
-    signed long long _x = x - centerX;
-    signed long long _y = y - centerY;
-
-    int tolerance = 2;
-
-    signed long long ia = a - tolerance; // inner a
-    signed long long ib = b - tolerance; // inner b
-    signed long long oa = a + tolerance; // outer b
-    signed long long ob = b + tolerance; // outer b
-
-    printf("%lld > %lld, %lld < %lld\n", ia*ia*_x*_x + ib*ib*_y*_y, ia*ia*ib*ib, oa*oa*_x*_x + ob*ob*_y*_y, oa*oa*ob*ob);
-
-    bool isOutOfInnerCircle = (signed long long)ia*ia*_x*_x + ib*ib*_y*_y > (signed long long)ia*ia*ib*ib;
-    bool isInOuterCircle = (signed long long)oa*oa*_x*_x + ob*ob*_y*_y < (signed long long)oa*oa*ob*ob;
-    mouseOver = isOutOfInnerCircle && isInOuterCircle;
+    int dx = std::abs(vrtxs[0].x - vrtxs[1].x);
+    int dy = std::abs(vrtxs[0].y - vrtxs[1].y);
+    if(dx < 4 || dy < 4) {
+      mouseOver = isMouseOverLine(vrtxs[0], vrtxs[1], x, y);
+    }
+    mouseOver = isMouseOverEllipse(vrtxs[0], vrtxs[1], x, y);
   }
 
   void draw(std::function<void(int, int, const Color &)> putPixel) {
