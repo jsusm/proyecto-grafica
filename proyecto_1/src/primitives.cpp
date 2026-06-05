@@ -4,7 +4,7 @@
 
 void deployLine(Point start, Point end, const Color &color,
                 std::function<void(int, int, const Color &)> putPixel) {
-  int x, y, dx, dy, d, incE, incNE, _dx, _dy;
+  int x, y, dx, dy, d, incE, incNE;
   // ajustamos el punto inicial y terminal a conveniencia para usar
   // el caso base (una linea de entre 0 a 45 grados)
   Point _start{0, 0};
@@ -38,7 +38,7 @@ void deployLine(Point start, Point end, const Color &color,
   x = 0;
   y = 0;
 
-  putPixel(x, y, color);
+  putPixel(start.x, start.y, color);
 
   for (; x < _end.x; x++) {
     if (d <= 0) {
