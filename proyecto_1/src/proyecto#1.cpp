@@ -141,8 +141,8 @@ public:
     return result;
   }
 
-  bool onMouseButtonDown(int x, int y) {
-    bool result = Figure::onMouseButtonDown(x, y);
+  bool onMouseButtonDown(int button, int x, int y) {
+    bool result = Figure::onMouseButtonDown(button, x, y);
     if (state == FigureState::SelectVertices && selectedVrtx == 2) {
       // assign the other vertices with the recent two
       stateMachine(0);
@@ -239,10 +239,10 @@ public:
   }
 };
 
-class Elipse : public Figure {
+class Ellipse : public Figure {
 public:
-  Elipse() {
-    type = FigureType::Elipse;
+  Ellipse() {
+    type = FigureType::Ellipse;
     maxVertices = 2;
     vrtxs.resize(maxVertices);
     vrtxHover.resize(maxVertices, false);
@@ -294,7 +294,10 @@ public:
   }
 };
 
-enum class ToolsType { Line, Select, Triangle, Elipse, Rect };
+//////////////////////////////////////////////////////
+// Figure Interface and Coordinator
+//////////////////////////////////////////////////////
+enum class ToolsType { Line, Select, Triangle, Ellipse, Rect };
 
 int WindowWidth = 1400;
 int WindowHeight = 720;
@@ -319,10 +322,9 @@ public:
   // saves which tool the user is using
   ToolsType currentTool = ToolsType::Line;
 
-  // is hover
-  bool isHover = false;
-
   bool mouseReserved = false;
+
+  Color currentColor{1, 1, 1};
 
   void setup() override {
     clear(colorFondo);
@@ -345,28 +347,28 @@ public:
 
       figures.push_back(std::make_unique<Line>());
       currentFigure = figures.back().get();
-      currentFigure->onMouseButtonDown(x, y);
+      currentFigure->onMouseButtonDown(button, x, y);
       currentTool = ToolsType::Select;
 
     } else if (currentTool == ToolsType::Rect) {
 
       figures.push_back(std::make_unique<Rect>());
       currentFigure = figures.back().get();
-      currentFigure->onMouseButtonDown(x, y);
+      currentFigure->onMouseButtonDown(button, x, y);
       currentTool = ToolsType::Select;
 
     } else if (currentTool == ToolsType::Triangle) {
 
       figures.push_back(std::make_unique<Triangle>());
       currentFigure = figures.back().get();
-      currentFigure->onMouseButtonDown(x, y);
+      currentFigure->onMouseButtonDown(button, x, y);
       currentTool = ToolsType::Select;
 
-    } else if (currentTool == ToolsType::Elipse){
+    } else if (currentTool == ToolsType::Ellipse){
 
-      figures.push_back(std::make_unique<Elipse>());
+      figures.push_back(std::make_unique<Ellipse>());
       currentFigure = figures.back().get();
-      currentFigure->onMouseButtonDown(x, y);
+      currentFigure->onMouseButtonDown(button, x, y);
       currentTool = ToolsType::Select;
 
     } else if (currentTool == ToolsType::Select)
@@ -375,7 +377,7 @@ public:
 
       if (currentFigure == nullptr) {
         for (auto &f : figures) {
-          f->onMouseButtonDown(x, y);
+          f->onMouseButtonDown(button, x, y);
           if (f->mouseOver) {
             currentFigure = f.get();
             f->select();
@@ -383,13 +385,13 @@ public:
           }
         }
       } else {
-        mouseReserved = currentFigure->onMouseButtonDown(x, y);
+        mouseReserved = currentFigure->onMouseButtonDown(button, x, y);
         if (currentTool == ToolsType::Select) {
           if (!mouseReserved && !currentFigure->mouseOver) {
             currentFigure->unselect();
             currentFigure = nullptr;
             for (auto &f : figures) {
-              f->onMouseButtonDown(x, y);
+              f->onMouseButtonDown(button, x, y);
               if (f->mouseOver) {
                 currentFigure = f.get();
                 currentFigure->select();
@@ -406,10 +408,10 @@ public:
       return;
     }
     if (currentFigure != nullptr) {
-      mouseReserved = currentFigure->onMouseButtonUp(x, y);
+      mouseReserved = currentFigure->onMouseButtonUp(button, x, y);
       if (!mouseReserved) {
         for (auto &f : figures) {
-          f->onMouseButtonUp(x, y);
+          f->onMouseButtonUp(button, x, y);
         }
       }
     }
@@ -468,8 +470,8 @@ public:
       }
     }
     ImGui::SameLine();
-    if (ImGui::Button("Elipse")) {
-      currentTool = ToolsType::Elipse;
+    if (ImGui::Button("Ellipse")) {
+      currentTool = ToolsType::Ellipse;
       if (currentFigure != nullptr) {
         currentFigure->unselect();
         currentFigure = nullptr;
@@ -494,11 +496,11 @@ public:
     ImGui::SetNextWindowSize(ImVec2(ToolsWindowWidth, WindowHeight));
 
     // Mouse configuration
-    if (isHover) {
-      ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
-    } else {
-      ImGui::SetMouseCursor(ImGuiMouseCursor_Arrow);
-    }
+    // if (isHover) {
+    //   ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
+    // } else {
+    //   ImGui::SetMouseCursor(ImGuiMouseCursor_Arrow);
+    // }
 
     // Begin
     ImGui::Begin("Herramientas", NULL, window_flags);

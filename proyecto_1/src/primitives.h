@@ -3,7 +3,7 @@
 #include "engine2D.h"
 #include <functional>
 
-enum class FigureType { Line, Rect, Triangle, Elipse, Unknown };
+enum class FigureType { Line, Rect, Triangle, Ellipse, Unknown };
 
 struct Point {
   int x;
@@ -42,7 +42,7 @@ protected:
   void stateMachine(int branch) {
     switch (state) {
     case FigureState::SelectVertices:
-      if (vrtxs.size() == maxVertices) {
+      if (selectedVrtx == maxVertices) {
         state = FigureState::Selected;
       }
       break;
@@ -182,7 +182,10 @@ public:
     return false;
   }
 
-  virtual bool onMouseButtonDown(int x, int y) {
+  virtual bool onMouseButtonDown(int button, int x, int y) {
+    if(button != GLFW_MOUSE_BUTTON_LEFT) {
+      return false;
+    }
     isMouseOver(x, y);
     updateVrtxHover(x, y);
     switch (state) {
@@ -225,7 +228,10 @@ public:
     return false;
   }
 
-  virtual bool onMouseButtonUp(int x, int y) {
+  virtual bool onMouseButtonUp(int button, int x, int y) {
+    if(button != GLFW_MOUSE_BUTTON_LEFT) {
+      return false;
+    }
     switch (state) {
     case FigureState::Selected:
       break;
