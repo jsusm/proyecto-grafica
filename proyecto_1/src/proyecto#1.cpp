@@ -270,7 +270,11 @@ public:
     }
 
     // deploy lines because the figure can be edited in any quadrilateral.
-    deployEllipse(vrtxs[0], vrtxs[1], lineColor, putPixel);
+    if(std::abs(vrtxs[0].x - vrtxs[1].x) <= 4 || std::abs(vrtxs[0].y - vrtxs[1].y) <= 4) {
+      deployLine(vrtxs[0], vrtxs[1], lineColor, putPixel);
+    }else {
+      deployEllipse(vrtxs[0], vrtxs[1], lineColor, putPixel);
+    }
 
     // Show control points
     if (state == FigureState::Selected) {
