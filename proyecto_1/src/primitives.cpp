@@ -96,10 +96,11 @@ long long edgeFunction(Point a, Point b, Point p) {
          static_cast<long long>(p.y - a.y) * (b.x - a.x);
 }
 
-void deployFilledTriangle(
-    Point vrtx1, Point vrtx2, Point vrtx3, const Color &lineColor,
-    const Color &fillColor, bool fill,
-    std::function<void(int, int, const Color &)> putPixel, bool skipFirstLine) {
+void deployFilledTriangle(Point vrtx1, Point vrtx2, Point vrtx3,
+                          const Color &lineColor, const Color &fillColor,
+                          bool fill,
+                          std::function<void(int, int, const Color &)> putPixel,
+                          bool skipFirstLine) {
   int minX = std::min({vrtx1.x, vrtx2.x, vrtx3.x});
   int maxX = std::max({vrtx1.x, vrtx2.x, vrtx3.x});
   int minY = std::min({vrtx1.y, vrtx2.y, vrtx3.y});
@@ -124,7 +125,7 @@ void deployFilledTriangle(
     }
   }
 
-  if(!skipFirstLine) {
+  if (!skipFirstLine) {
     deployLine(vrtx1, vrtx2, lineColor, putPixel);
   }
   deployLine(vrtx2, vrtx3, lineColor, putPixel);
@@ -170,7 +171,8 @@ void deployCircle(Point center, int radius, const Color &color,
 
 void drawEllipsePoints(int x, int y, const Color &c, const Color &fc, bool fill,
                        int centerx, int centery, int flipcoords,
-                       std::function<void(int, int, const Color &)> putPixel) {
+                       std::function<void(int, int, const Color &)> putPixel,
+                       int a, int b) {
 
   if (flipcoords) {
     int aux = x;
@@ -178,10 +180,17 @@ void drawEllipsePoints(int x, int y, const Color &c, const Color &fc, bool fill,
     y = aux;
   }
   if (fill) {
-    deployLine(Point{centerx + x, centery + y}, Point{centerx - x, centery + y},
-               fc, putPixel);
-    deployLine(Point{centerx + x, centery - y}, Point{centerx - x, centery - y},
-               fc, putPixel);
+    if (!flipcoords) {
+      deployLine(Point{centerx + x, centery + y},
+                 Point{centerx - x, centery + y}, fc, putPixel);
+      deployLine(Point{centerx + x, centery - y},
+                 Point{centerx - x, centery - y}, fc, putPixel);
+    } else {
+      deployLine(Point{centerx + x, centery + y},
+                 Point{centerx + x, centery - y}, fc, putPixel);
+      deployLine(Point{centerx - x, centery + y},
+                 Point{centerx - x, centery - y}, fc, putPixel);
+    }
   }
   putPixel(centerx + x, centery + y, c);
   putPixel(centerx + x, centery - y, c);
@@ -209,7 +218,7 @@ void deployEllipse(Point vrtx1, Point vrtx2, const Color &lineColor,
   y = b;
   d = b * (4 * b - 4 * a * a) + a * a;
   drawEllipsePoints(x, y, lineColor, fillColor, fill, centerx, centery,
-                    flipcoords, putPixel);
+                    flipcoords, putPixel, a, b);
   bool f = false;
   while (b * b * 2 * (x + 1) < a * a * (2 * y - 1)) {
     if (d < 0) {
@@ -222,7 +231,7 @@ void deployEllipse(Point vrtx1, Point vrtx2, const Color &lineColor,
     }
     x++;
     drawEllipsePoints(x, y, lineColor, fillColor, fill && f, centerx, centery,
-                      flipcoords, putPixel);
+                      flipcoords, putPixel, a, b);
   }
   // Modalidad 2
   while (y > 0) {
@@ -234,6 +243,6 @@ void deployEllipse(Point vrtx1, Point vrtx2, const Color &lineColor,
     }
     y--;
     drawEllipsePoints(x, y, lineColor, fillColor, fill, centerx, centery,
-                      flipcoords, putPixel);
+                      flipcoords, putPixel, b, a);
   }
 }
