@@ -143,29 +143,12 @@ public:
       return;
     }
 
-    if (state != FigureState::Unselected &&
-        state != FigureState::SelectVertices) {
-      BoundingBox bb = getBoundingBox();
-      deploySquare(bb.vrtx1, bb.vrtx2, boxColor, putPixel);
-    }
+    drawBoundingBox(putPixel);
 
     deployLine(vrtxs[0], vrtxs[1], lineColor, putPixel);
 
     // Show control points
-    if (state == FigureState::Selected) {
-      for (int i = 0; i < vrtxs.size(); i++) {
-        if (vrtxHover[i]) {
-          deployCircle(vrtxs[i], vrtxRadius, selectedColor, putPixel);
-        } else {
-          deployCircle(vrtxs[i], vrtxRadius, lineColor, putPixel);
-        }
-      }
-      if (hoverCenterVrtx) {
-        deployCircle(centerVrtx, 4, selectedColor, putPixel);
-      } else {
-        deployCircle(centerVrtx, 4, lineColor, putPixel);
-      }
-    }
+    drawControlPoints(putPixel);
   }
 
   void isMouseOver(int x, int y) {

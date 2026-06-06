@@ -146,7 +146,21 @@ void drawCirclePoints(int x, int y, int centerx, int centery,
   putPixel(centerx - y, centery - x, color);
 }
 
-void deployCircle(Point center, int radius, const Color &color,
+void drawCircleFillLines(int x, int y, int centerx, int centery,
+                         const Color &color,
+                         std::function<void(int, int, const Color &)> putPixel) {
+  deployLine(Point{centerx - x, centery + y}, Point{centerx + x, centery + y},
+             color, putPixel);
+  deployLine(Point{centerx - x, centery - y}, Point{centerx + x, centery - y},
+             color, putPixel);
+  deployLine(Point{centerx - y, centery + x}, Point{centerx + y, centery + x},
+             color, putPixel);
+  deployLine(Point{centerx - y, centery - x}, Point{centerx + y, centery - x},
+             color, putPixel);
+}
+
+void deployCircle(Point center, int radius, const Color &lineColor,
+                  const Color &fillColor, bool fill,
                   std::function<void(int, int, const Color &)> putPixel) {
   int dx = center.x;
   int dy = center.y;
@@ -156,7 +170,10 @@ void deployCircle(Point center, int radius, const Color &color,
   int y = r;
   int d = 1 - r;
 
-  drawCirclePoints(x, y, center.x, center.y, color, putPixel);
+  if (fill) {
+    drawCircleFillLines(x, y, center.x, center.y, fillColor, putPixel);
+  }
+  drawCirclePoints(x, y, center.x, center.y, lineColor, putPixel);
   while (y > x) {
     if (d < 0) {
       d += 2 * x + 3;
@@ -165,7 +182,10 @@ void deployCircle(Point center, int radius, const Color &color,
       y--;
     }
     x++;
-    drawCirclePoints(x, y, center.x, center.y, color, putPixel);
+    if (fill) {
+      drawCircleFillLines(x, y, center.x, center.y, fillColor, putPixel);
+    }
+    drawCirclePoints(x, y, center.x, center.y, lineColor, putPixel);
   }
 }
 

@@ -30,20 +30,21 @@ void deploySquare(Point vrtx1, Point vrtx2, const Color &color,
 void deployFilledSquare(Point vrtx1, Point vrtx2, const Color &color,
                         std::function<void(int, int, const Color &)> putPixel);
 
-void deployFilledTriangle(
-    Point vrtx1, Point vrtx2, Point vrtx3, const Color &lineColor,
-    const Color &fillColor, bool fill,
-    std::function<void(int, int, const Color &)> putPixel, bool skipFirstLine = false);
+void deployFilledTriangle(Point vrtx1, Point vrtx2, Point vrtx3,
+                          const Color &lineColor, const Color &fillColor,
+                          bool fill,
+                          std::function<void(int, int, const Color &)> putPixel,
+                          bool skipFirstLine = false);
 
 void deployEllipse(Point vrtx1, Point vrtx2, const Color &lineColor,
                    const Color &fillColor, bool fill,
                    std::function<void(int, int, const Color &)> putPixel);
 
-void deployCircle(Point center, int radius, const Color &color,
+void deployCircle(Point center, int radius, const Color &lineColor,
+                  const Color &fillColor, bool fill,
                   std::function<void(int, int, const Color &)> putPixel);
 
 enum class FigureType { Line, Rect, Triangle, Ellipse, Unknown };
-
 
 class Figure {
 protected:
@@ -57,8 +58,14 @@ protected:
   bool filled = false;
   bool hoverCenterVrtx = false;
   Point centerVrtx;
-  Color selectedColor = Color(0.1f, 1.0f, 0.1f);
   Color boxColor = Color(0.2f, 0.2f, 1.0f);
+
+  Color selectVrtxFill = Color(0.9f, 0.9f, 0.1f);
+  Color selectVrtxFillHover = Color(1, 1, 0.4);
+  Color selectVrtxLine = Color(1, 1, 1);
+  Color selectVrtxLineHover = Color(0.9, 0.9, 1);
+  Color selectVrtxLineContrast = Color(0, 0, 0);
+
   Point dragOrigin;
 
   FigureState state = FigureState::SelectVertices;
@@ -122,24 +129,39 @@ protected:
     if (state != FigureState::Unselected &&
         state != FigureState::SelectVertices) {
       BoundingBox bb = getBoundingBox();
-      deploySquare(Point(bb.vrtx1.x - 4, bb.vrtx1.y - 4), Point(bb.vrtx2.x + 4, bb.vrtx2.y + 4), boxColor, putPixel);
+      deploySquare(Point(bb.vrtx1.x - 4, bb.vrtx1.y - 4),
+                   Point(bb.vrtx2.x + 4, bb.vrtx2.y + 4), boxColor, putPixel);
     }
   }
 
-  void drawControlPoints(std::function<void(int, int, const Color &)> putPixel){
+  void
+  drawControlPoints(std::function<void(int, int, const Color &)> putPixel) {
     // Show control points
     if (state == FigureState::Selected) {
+      int r = vrtxRadius;
       for (int i = 0; i < vrtxs.size(); i++) {
         if (vrtxHover[i]) {
-          deployCircle(vrtxs[i], vrtxRadius, selectedColor, putPixel);
+          deployCircle(vrtxs[i], r + 1, selectVrtxLineContrast,
+                       selectVrtxLineContrast, false, putPixel);
+          deployCircle(vrtxs[i], r, selectVrtxLineHover, selectVrtxFillHover,
+                       true, putPixel);
         } else {
-          deployCircle(vrtxs[i], vrtxRadius, lineColor, putPixel);
+          deployCircle(vrtxs[i], r + 1, selectVrtxLineContrast,
+                       selectVrtxLineContrast, false, putPixel);
+          deployCircle(vrtxs[i], r, selectVrtxLine, selectVrtxFill, true,
+                       putPixel);
         }
       }
       if (hoverCenterVrtx) {
-        deployCircle(centerVrtx, 4, selectedColor, putPixel);
+        deployCircle(centerVrtx, r + 1, selectVrtxLineContrast,
+                     selectVrtxLineContrast, false, putPixel);
+        deployCircle(centerVrtx, r, selectVrtxLineHover, selectVrtxFillHover,
+                     true, putPixel);
       } else {
-        deployCircle(centerVrtx, 4, lineColor, putPixel);
+        deployCircle(centerVrtx, r + 1, selectVrtxLineContrast,
+                     selectVrtxLineContrast, false, putPixel);
+        deployCircle(centerVrtx, r, selectVrtxLine, selectVrtxFill, true,
+                     putPixel);
       }
     }
   }
@@ -150,7 +172,7 @@ protected:
     int minY = vrtxs[0].y;
     int maxX = vrtxs[0].x;
     int maxY = vrtxs[0].y;
-    for(auto &p: vrtxs){
+    for (auto &p : vrtxs) {
       minX = std::min(minX, p.x);
       minY = std::min(minY, p.y);
       maxX = std::max(maxX, p.x);
@@ -161,7 +183,7 @@ protected:
   virtual void isMouseOver(int x, int y) {}
 
 public:
-  Figure(Color line, Color fill){
+  Figure(Color line, Color fill) {
     this->lineColor = line;
     this->fillColor = fill;
   }
@@ -173,26 +195,12 @@ public:
   bool mouseOver = false;
   virtual void draw(std::function<void(int, int, const Color &)> putPixel) {};
 
-
-  void setLineColor(Color color) {
-    lineColor = color;
-  }
-  Color getLineColor() {
-    return lineColor;
-  }
-  void setFillColor(Color color) {
-    fillColor = color;
-  }
-  Color getFillColor() {
-    return fillColor;
-  }
-  void setFilled(bool value){
-    filled = value;
-  }
-  bool isFilled(){
-    return filled;
-  }
-
+  void setLineColor(Color color) { lineColor = color; }
+  Color getLineColor() { return lineColor; }
+  void setFillColor(Color color) { fillColor = color; }
+  Color getFillColor() { return fillColor; }
+  void setFilled(bool value) { filled = value; }
+  bool isFilled() { return filled; }
 
   void select() {
     switch (state) {
@@ -254,7 +262,7 @@ public:
   }
 
   virtual bool onMouseButtonDown(int button, int x, int y) {
-    if(button != GLFW_MOUSE_BUTTON_LEFT) {
+    if (button != GLFW_MOUSE_BUTTON_LEFT) {
       return false;
     }
     isMouseOver(x, y);
@@ -300,7 +308,7 @@ public:
   }
 
   virtual bool onMouseButtonUp(int button, int x, int y) {
-    if(button != GLFW_MOUSE_BUTTON_LEFT) {
+    if (button != GLFW_MOUSE_BUTTON_LEFT) {
       return false;
     }
     switch (state) {
