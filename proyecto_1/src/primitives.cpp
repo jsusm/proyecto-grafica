@@ -1,4 +1,5 @@
 #include "primitives.h"
+#include <algorithm>
 #include <cmath>
 #include <functional>
 
@@ -76,8 +77,63 @@ void deploySquare(Point vrtx1, Point vrtx2, const Color &color,
   deployLine(Point(vrtx2.x, vrtx1.y), Point(vrtx2.x, vrtx2.y), color, putPixel);
 }
 
-void drawCirclePoints(int x, int y, int centerx, int centery, const Color &color,
-                  std::function<void(int, int, const Color &)> putPixel) {
+void deployFilledSquare(Point vrtx1, Point vrtx2, const Color &color,
+                        std::function<void(int, int, const Color &)> putPixel) {
+  int minX = std::min(vrtx1.x, vrtx2.x);
+  int maxX = std::max(vrtx1.x, vrtx2.x);
+  int minY = std::min(vrtx1.y, vrtx2.y);
+  int maxY = std::max(vrtx1.y, vrtx2.y);
+
+  for (int y = minY; y <= maxY; y++) {
+    for (int x = minX; x <= maxX; x++) {
+      putPixel(x, y, color);
+    }
+  }
+}
+
+long long edgeFunction(Point a, Point b, Point p) {
+  return static_cast<long long>(p.x - a.x) * (b.y - a.y) -
+         static_cast<long long>(p.y - a.y) * (b.x - a.x);
+}
+
+void deployFilledTriangle(
+    Point vrtx1, Point vrtx2, Point vrtx3, const Color &lineColor,
+    const Color &fillColor, bool fill,
+    std::function<void(int, int, const Color &)> putPixel, bool skipFirstLine) {
+  int minX = std::min({vrtx1.x, vrtx2.x, vrtx3.x});
+  int maxX = std::max({vrtx1.x, vrtx2.x, vrtx3.x});
+  int minY = std::min({vrtx1.y, vrtx2.y, vrtx3.y});
+  int maxY = std::max({vrtx1.y, vrtx2.y, vrtx3.y});
+
+  long long area = edgeFunction(vrtx1, vrtx2, vrtx3);
+
+  if (fill) {
+    for (int y = minY; y <= maxY; y++) {
+      for (int x = minX; x <= maxX; x++) {
+        Point p{x, y};
+        long long w1 = edgeFunction(vrtx1, vrtx2, p);
+        long long w2 = edgeFunction(vrtx2, vrtx3, p);
+        long long w3 = edgeFunction(vrtx3, vrtx1, p);
+
+        bool inside = area > 0 ? w1 >= 0 && w2 >= 0 && w3 >= 0
+                               : w1 <= 0 && w2 <= 0 && w3 <= 0;
+        if (inside) {
+          putPixel(x, y, fillColor);
+        }
+      }
+    }
+  }
+
+  if(!skipFirstLine) {
+    deployLine(vrtx1, vrtx2, lineColor, putPixel);
+  }
+  deployLine(vrtx2, vrtx3, lineColor, putPixel);
+  deployLine(vrtx3, vrtx1, lineColor, putPixel);
+}
+
+void drawCirclePoints(int x, int y, int centerx, int centery,
+                      const Color &color,
+                      std::function<void(int, int, const Color &)> putPixel) {
 
   putPixel(centerx + x, centery + y, color);
   putPixel(centerx + x, centery - y, color);
@@ -89,7 +145,8 @@ void drawCirclePoints(int x, int y, int centerx, int centery, const Color &color
   putPixel(centerx - y, centery - x, color);
 }
 
-void deployCircle(Point center, int radius, const Color &color, std::function<void (int, int, const Color &)> putPixel){
+void deployCircle(Point center, int radius, const Color &color,
+                  std::function<void(int, int, const Color &)> putPixel) {
   int dx = center.x;
   int dy = center.y;
   int r = radius;
@@ -99,11 +156,11 @@ void deployCircle(Point center, int radius, const Color &color, std::function<vo
   int d = 1 - r;
 
   drawCirclePoints(x, y, center.x, center.y, color, putPixel);
-  while(y > x) {
-    if(d < 0) {
+  while (y > x) {
+    if (d < 0) {
       d += 2 * x + 3;
     } else {
-      d += 2 * (x-y) + 5;
+      d += 2 * (x - y) + 5;
       y--;
     }
     x++;
@@ -111,14 +168,20 @@ void deployCircle(Point center, int radius, const Color &color, std::function<vo
   }
 }
 
-void drawEllipsePoints(int x, int y, const Color &c, int centerx, int centery,
-                      int flipcoords,
-                      std::function<void(int, int, const Color &)> putPixel) {
+void drawEllipsePoints(int x, int y, const Color &c, const Color &fc, bool fill,
+                       int centerx, int centery, int flipcoords,
+                       std::function<void(int, int, const Color &)> putPixel) {
 
   if (flipcoords) {
     int aux = x;
     x = y;
     y = aux;
+  }
+  if (fill) {
+    deployLine(Point{centerx + x, centery + y}, Point{centerx - x, centery + y},
+               fc, putPixel);
+    deployLine(Point{centerx + x, centery - y}, Point{centerx - x, centery - y},
+               fc, putPixel);
   }
   putPixel(centerx + x, centery + y, c);
   putPixel(centerx + x, centery - y, c);
@@ -126,8 +189,9 @@ void drawEllipsePoints(int x, int y, const Color &c, int centerx, int centery,
   putPixel(centerx - x, centery + y, c);
 }
 
-void deployEllipse(Point vrtx1, Point vrtx2, const Color &color,
-                  std::function<void(int, int, const Color &)> putPixel) {
+void deployEllipse(Point vrtx1, Point vrtx2, const Color &lineColor,
+                   const Color &fillColor, bool fill,
+                   std::function<void(int, int, const Color &)> putPixel) {
   int centerx = (vrtx2.x + vrtx1.x) / 2;
   int centery = (vrtx2.y + vrtx1.y) / 2;
   int a = std::abs(vrtx1.x - vrtx2.x) / 2;
@@ -144,16 +208,21 @@ void deployEllipse(Point vrtx1, Point vrtx2, const Color &color,
   x = 0;
   y = b;
   d = b * (4 * b - 4 * a * a) + a * a;
-  drawEllipsePoints(x, y, color, centerx, centery, flipcoords, putPixel);
+  drawEllipsePoints(x, y, lineColor, fillColor, fill, centerx, centery,
+                    flipcoords, putPixel);
+  bool f = false;
   while (b * b * 2 * (x + 1) < a * a * (2 * y - 1)) {
     if (d < 0) {
       d += 4 * (b * b * (2 * x + 3));
+      f = false;
     } else {
       d += 4 * (b * b * (2 * x + 3) + a * a * (-2 * y + 2));
       y--;
+      f = true;
     }
     x++;
-    drawEllipsePoints(x, y, color, centerx, centery, flipcoords, putPixel);
+    drawEllipsePoints(x, y, lineColor, fillColor, fill && f, centerx, centery,
+                      flipcoords, putPixel);
   }
   // Modalidad 2
   while (y > 0) {
@@ -164,6 +233,7 @@ void deployEllipse(Point vrtx1, Point vrtx2, const Color &color,
       d += 4 * a * a * (-2 * y + 3);
     }
     y--;
-    drawEllipsePoints(x, y, color, centerx, centery, flipcoords, putPixel);
+    drawEllipsePoints(x, y, lineColor, fillColor, fill, centerx, centery,
+                      flipcoords, putPixel);
   }
 }

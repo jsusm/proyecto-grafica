@@ -67,7 +67,7 @@ bool isMouseOverEllipse(Point vrtx1, Point vrtx2, int x, int y) {
 //////////////////////////////////////////////////////
 class Line : public Figure {
 public:
-  Line() {
+  Line(Color line, Color fill): Figure(line, fill) {
     type = FigureType::Line;
     maxVertices = 2;
     vrtxs.resize(maxVertices);
@@ -112,7 +112,7 @@ public:
 
 class Rect : public Figure {
 public:
-  Rect() {
+  Rect(Color line, Color fill): Figure(line, fill) {
     type = FigureType::Rect;
     maxVertices = 4;
     vrtxs.resize(maxVertices);
@@ -142,6 +142,7 @@ public:
   }
 
   bool onMouseButtonDown(int button, int x, int y) {
+    if(button != GLFW_MOUSE_BUTTON_LEFT) return false;
     bool result = Figure::onMouseButtonDown(button, x, y);
     if (state == FigureState::SelectVertices && selectedVrtx == 2) {
       // assign the other vertices with the recent two
@@ -166,10 +167,8 @@ public:
     }
 
     // deploy lines because the figure can be edited in any quadrilateral.
-    deployLine(vrtxs[0], vrtxs[3], lineColor, putPixel);
-    deployLine(vrtxs[0], vrtxs[2], lineColor, putPixel);
-    deployLine(vrtxs[1], vrtxs[3], lineColor, putPixel);
-    deployLine(vrtxs[1], vrtxs[2], lineColor, putPixel);
+    deployFilledTriangle(vrtxs[0], vrtxs[1], vrtxs[2], lineColor, fillColor, filled, putPixel, true);
+    deployFilledTriangle(vrtxs[0], vrtxs[1], vrtxs[3], lineColor, fillColor, filled, putPixel, true);
 
     // Show control points
     if (state == FigureState::Selected) {
@@ -191,7 +190,7 @@ public:
 
 class Triangle : public Figure {
 public:
-  Triangle() {
+  Triangle(Color line, Color fill): Figure(line, fill) {
     type = FigureType::Triangle;
     maxVertices = 3;
     vrtxs.resize(maxVertices);
@@ -217,9 +216,7 @@ public:
     }
 
     // deploy lines because the figure can be edited in any quadrilateral.
-    deployLine(vrtxs[0], vrtxs[2], lineColor, putPixel);
-    deployLine(vrtxs[1], vrtxs[0], lineColor, putPixel);
-    deployLine(vrtxs[1], vrtxs[2], lineColor, putPixel);
+    deployFilledTriangle(vrtxs[0], vrtxs[1], vrtxs[2], lineColor, fillColor, filled, putPixel);
 
     // Show control points
     if (state == FigureState::Selected) {
@@ -241,7 +238,7 @@ public:
 
 class Ellipse : public Figure {
 public:
-  Ellipse() {
+  Ellipse(Color line, Color fill): Figure(line, fill) {
     type = FigureType::Ellipse;
     maxVertices = 2;
     vrtxs.resize(maxVertices);
@@ -273,7 +270,7 @@ public:
     if(std::abs(vrtxs[0].x - vrtxs[1].x) <= 4 || std::abs(vrtxs[0].y - vrtxs[1].y) <= 4) {
       deployLine(vrtxs[0], vrtxs[1], lineColor, putPixel);
     }else {
-      deployEllipse(vrtxs[0], vrtxs[1], lineColor, putPixel);
+      deployEllipse(vrtxs[0], vrtxs[1], lineColor, fillColor, filled, putPixel);
     }
 
     // Show control points
@@ -320,11 +317,13 @@ public:
   std::vector<std::unique_ptr<Figure>> figures{};
 
   // saves which tool the user is using
-  ToolsType currentTool = ToolsType::Line;
+  ToolsType currentTool = ToolsType::Select;
 
   bool mouseReserved = false;
 
-  Color currentColor{1, 1, 1};
+  Color lineColor{1, 1, 1};
+  Color fillColor{1, 1, 1};
+  bool filled = false;
 
   void setup() override {
     clear(colorFondo);
@@ -345,30 +344,34 @@ public:
     }
     if (currentTool == ToolsType::Line) {
 
-      figures.push_back(std::make_unique<Line>());
+      figures.push_back(std::make_unique<Line>(lineColor, fillColor));
       currentFigure = figures.back().get();
       currentFigure->onMouseButtonDown(button, x, y);
+      currentFigure->setFilled(filled);
       currentTool = ToolsType::Select;
 
     } else if (currentTool == ToolsType::Rect) {
 
-      figures.push_back(std::make_unique<Rect>());
+      figures.push_back(std::make_unique<Rect>(lineColor, fillColor));
       currentFigure = figures.back().get();
       currentFigure->onMouseButtonDown(button, x, y);
+      currentFigure->setFilled(filled);
       currentTool = ToolsType::Select;
 
     } else if (currentTool == ToolsType::Triangle) {
 
-      figures.push_back(std::make_unique<Triangle>());
+      figures.push_back(std::make_unique<Triangle>(lineColor, fillColor));
       currentFigure = figures.back().get();
       currentFigure->onMouseButtonDown(button, x, y);
+      currentFigure->setFilled(filled);
       currentTool = ToolsType::Select;
 
     } else if (currentTool == ToolsType::Ellipse){
 
-      figures.push_back(std::make_unique<Ellipse>());
+      figures.push_back(std::make_unique<Ellipse>(lineColor, fillColor));
       currentFigure = figures.back().get();
       currentFigure->onMouseButtonDown(button, x, y);
+      currentFigure->setFilled(filled);
       currentTool = ToolsType::Select;
 
     } else if (currentTool == ToolsType::Select)
@@ -381,6 +384,7 @@ public:
           if (f->mouseOver) {
             currentFigure = f.get();
             f->select();
+            onSelectFigure();
             break;
           }
         }
@@ -395,6 +399,7 @@ public:
               if (f->mouseOver) {
                 currentFigure = f.get();
                 currentFigure->select();
+                onSelectFigure();
                 break;
               }
             }
@@ -403,6 +408,15 @@ public:
       }
     }
   }
+
+  void onSelectFigure() {
+    lineColor = currentFigure->getLineColor();
+    printf("lineColor red: %f, lineColorFig red: %f\n", lineColor.r, currentFigure->getLineColor().r);
+    if(currentFigure->isFilled()){
+      fillColor = currentFigure->getFillColor();
+    }
+  }
+
   void onMouseButtonUp(int button, double x, double y) override {
     if (x >= WindowWidth - ToolsWindowWidth) {
       return;
@@ -508,6 +522,31 @@ public:
     ImGui::Separator();
     toolsSection();
     ImGui::Separator();
+    ImGui::SeparatorText("Color de Linea");
+    float lc[3] = {lineColor.r, lineColor.g, lineColor.b};
+    float fc[3] = {fillColor.r, fillColor.g, fillColor.b};
+    if(ImGui::ColorEdit3(" ", lc)) {
+      lineColor.r = lc[0];
+      lineColor.g = lc[1];
+      lineColor.b = lc[2];
+      if(currentFigure!=nullptr){
+         currentFigure->setLineColor(lineColor);
+      }
+    };
+    ImGui::SeparatorText("Color de relleno");
+    if(ImGui::ColorEdit3("  ", fc)) {
+      fillColor.r = fc[0];
+      fillColor.g = fc[1];
+      fillColor.b = fc[2];
+      if(currentFigure!=nullptr){
+         currentFigure->setFillColor(fillColor);
+      }
+    };
+    if(ImGui::Checkbox("Rellenar figura", &filled)){
+      if(currentFigure!=nullptr){
+         currentFigure->setFilled(filled);
+      }
+    };
     ImGui::End();
   }
 };

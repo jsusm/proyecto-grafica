@@ -31,6 +31,8 @@ protected:
   int maxVertices = 2;
   int selectedVrtx = 0;
   Color lineColor{1.0f, 1.0f, 1.0f};
+  Color fillColor{0.99f, 0.99f, 0.99f};
+  bool filled = false;
   bool hoverCenterVrtx = false;
   Point centerVrtx;
   Color selectedColor = Color(0.1f, 1.0f, 0.1f);
@@ -42,7 +44,7 @@ protected:
   void stateMachine(int branch) {
     switch (state) {
     case FigureState::SelectVertices:
-      if (selectedVrtx == maxVertices) {
+      if (vrtxs.size() == maxVertices) {
         state = FigureState::Selected;
       }
       break;
@@ -111,12 +113,38 @@ protected:
   virtual void isMouseOver(int x, int y) {}
 
 public:
+  Figure(Color line, Color fill){
+    this->lineColor = line;
+    this->fillColor = fill;
+  }
+
   virtual ~Figure() = default;
 
   FigureType type = FigureType::Unknown;
   bool selected = false;
   bool mouseOver = false;
   virtual void draw(std::function<void(int, int, const Color &)> putPixel) {};
+
+
+  void setLineColor(Color color) {
+    lineColor = color;
+  }
+  Color getLineColor() {
+    return lineColor;
+  }
+  void setFillColor(Color color) {
+    fillColor = color;
+  }
+  Color getFillColor() {
+    return fillColor;
+  }
+  void setFilled(bool value){
+    filled = value;
+  }
+  bool isFilled(){
+    return filled;
+  }
+
 
   void select() {
     switch (state) {
@@ -147,11 +175,6 @@ public:
 
     case FigureState::Unselected:
       isMouseOver(x, y);
-      if(mouseOver){
-        lineColor = Color(1,0,1);
-      }else {
-        lineColor = Color(1,1,1);
-      }
       break;
 
     case FigureState::SelectVertices:
@@ -270,8 +293,17 @@ void deployLine(Point start, Point end, const Color &color,
 void deploySquare(Point vrtx1, Point vrtx2, const Color &color,
                   std::function<void(int, int, const Color &)> putPixel);
 
-void deployEllipse(Point vrtx1, Point vrtx2, const Color &color,
-                  std::function<void(int, int, const Color &)> putPixel);
+void deployFilledSquare(Point vrtx1, Point vrtx2, const Color &color,
+                        std::function<void(int, int, const Color &)> putPixel);
+
+void deployFilledTriangle(
+    Point vrtx1, Point vrtx2, Point vrtx3, const Color &lineColor,
+    const Color &fillColor, bool fill,
+    std::function<void(int, int, const Color &)> putPixel, bool skipFirstLine = false);
+
+void deployEllipse(Point vrtx1, Point vrtx2, const Color &lineColor,
+                   const Color &fillColor, bool fill,
+                   std::function<void(int, int, const Color &)> putPixel);
 
 void deployCircle(Point center, int radius, const Color &color,
                   std::function<void(int, int, const Color &)> putPixel);
