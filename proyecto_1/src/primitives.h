@@ -3,8 +3,6 @@
 #include "engine2D.h"
 #include <functional>
 
-enum class FigureType { Line, Rect, Triangle, Ellipse, Unknown };
-
 struct Point {
   int x;
   int y;
@@ -23,6 +21,30 @@ enum class FigureState {
   DragFigure
 };
 
+void deployLine(Point start, Point end, const Color &color,
+                std::function<void(int, int, const Color &)> putPixel);
+
+void deploySquare(Point vrtx1, Point vrtx2, const Color &color,
+                  std::function<void(int, int, const Color &)> putPixel);
+
+void deployFilledSquare(Point vrtx1, Point vrtx2, const Color &color,
+                        std::function<void(int, int, const Color &)> putPixel);
+
+void deployFilledTriangle(
+    Point vrtx1, Point vrtx2, Point vrtx3, const Color &lineColor,
+    const Color &fillColor, bool fill,
+    std::function<void(int, int, const Color &)> putPixel, bool skipFirstLine = false);
+
+void deployEllipse(Point vrtx1, Point vrtx2, const Color &lineColor,
+                   const Color &fillColor, bool fill,
+                   std::function<void(int, int, const Color &)> putPixel);
+
+void deployCircle(Point center, int radius, const Color &color,
+                  std::function<void(int, int, const Color &)> putPixel);
+
+enum class FigureType { Line, Rect, Triangle, Ellipse, Unknown };
+
+
 class Figure {
 protected:
   std::vector<Point> vrtxs;
@@ -36,7 +58,7 @@ protected:
   bool hoverCenterVrtx = false;
   Point centerVrtx;
   Color selectedColor = Color(0.1f, 1.0f, 0.1f);
-  Color boxColor = Color(0.2f, 0.2f, 0.2f);
+  Color boxColor = Color(0.2f, 0.2f, 1.0f);
   Point dragOrigin;
 
   FigureState state = FigureState::SelectVertices;
@@ -94,6 +116,32 @@ protected:
     y /= vrtxs.size();
     centerVrtx.x = x;
     centerVrtx.y = y;
+  }
+
+  void drawBoundingBox(std::function<void(int, int, const Color &)> putPixel) {
+    if (state != FigureState::Unselected &&
+        state != FigureState::SelectVertices) {
+      BoundingBox bb = getBoundingBox();
+      deploySquare(Point(bb.vrtx1.x - 4, bb.vrtx1.y - 4), Point(bb.vrtx2.x + 4, bb.vrtx2.y + 4), boxColor, putPixel);
+    }
+  }
+
+  void drawControlPoints(std::function<void(int, int, const Color &)> putPixel){
+    // Show control points
+    if (state == FigureState::Selected) {
+      for (int i = 0; i < vrtxs.size(); i++) {
+        if (vrtxHover[i]) {
+          deployCircle(vrtxs[i], vrtxRadius, selectedColor, putPixel);
+        } else {
+          deployCircle(vrtxs[i], vrtxRadius, lineColor, putPixel);
+        }
+      }
+      if (hoverCenterVrtx) {
+        deployCircle(centerVrtx, 4, selectedColor, putPixel);
+      } else {
+        deployCircle(centerVrtx, 4, lineColor, putPixel);
+      }
+    }
   }
 
   virtual BoundingBox getBoundingBox() {
@@ -286,24 +334,3 @@ public:
   // virtual bool onMouseButtonDown(int, int) { return false; }
   // virtual bool onMouseButtonUp(int, int) { return false; }
 };
-
-void deployLine(Point start, Point end, const Color &color,
-                std::function<void(int, int, const Color &)> putPixel);
-
-void deploySquare(Point vrtx1, Point vrtx2, const Color &color,
-                  std::function<void(int, int, const Color &)> putPixel);
-
-void deployFilledSquare(Point vrtx1, Point vrtx2, const Color &color,
-                        std::function<void(int, int, const Color &)> putPixel);
-
-void deployFilledTriangle(
-    Point vrtx1, Point vrtx2, Point vrtx3, const Color &lineColor,
-    const Color &fillColor, bool fill,
-    std::function<void(int, int, const Color &)> putPixel, bool skipFirstLine = false);
-
-void deployEllipse(Point vrtx1, Point vrtx2, const Color &lineColor,
-                   const Color &fillColor, bool fill,
-                   std::function<void(int, int, const Color &)> putPixel);
-
-void deployCircle(Point center, int radius, const Color &color,
-                  std::function<void(int, int, const Color &)> putPixel);

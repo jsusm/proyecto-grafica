@@ -222,11 +222,7 @@ public:
       return;
     }
 
-    if (state != FigureState::Unselected &&
-        state != FigureState::SelectVertices) {
-      BoundingBox bb = getBoundingBox();
-      deploySquare(bb.vrtx1, bb.vrtx2, boxColor, putPixel);
-    }
+    drawBoundingBox(putPixel);
 
     // deploy lines because the figure can be edited in any quadrilateral.
     deployFilledTriangle(vrtxs[0], vrtxs[1], vrtxs[2], lineColor, fillColor,
@@ -235,20 +231,7 @@ public:
                          filled, putPixel, true);
 
     // Show control points
-    if (state == FigureState::Selected) {
-      for (int i = 0; i < vrtxs.size(); i++) {
-        if (vrtxHover[i]) {
-          deployCircle(vrtxs[i], vrtxRadius, selectedColor, putPixel);
-        } else {
-          deployCircle(vrtxs[i], vrtxRadius, lineColor, putPixel);
-        }
-      }
-      if (hoverCenterVrtx) {
-        deployCircle(centerVrtx, 4, selectedColor, putPixel);
-      } else {
-        deployCircle(centerVrtx, 4, lineColor, putPixel);
-      }
-    }
+    drawControlPoints(putPixel);
   }
 };
 
@@ -271,31 +254,14 @@ public:
       return;
     }
 
-    if (state != FigureState::Unselected &&
-        state != FigureState::SelectVertices) {
-      BoundingBox bb = getBoundingBox();
-      deploySquare(bb.vrtx1, bb.vrtx2, boxColor, putPixel);
-    }
+    drawBoundingBox(putPixel);
 
     // deploy lines because the figure can be edited in any quadrilateral.
     deployFilledTriangle(vrtxs[0], vrtxs[1], vrtxs[2], lineColor, fillColor,
                          filled, putPixel);
 
     // Show control points
-    if (state == FigureState::Selected) {
-      for (int i = 0; i < vrtxs.size(); i++) {
-        if (vrtxHover[i]) {
-          deployCircle(vrtxs[i], vrtxRadius, selectedColor, putPixel);
-        } else {
-          deployCircle(vrtxs[i], vrtxRadius, lineColor, putPixel);
-        }
-      }
-      if (hoverCenterVrtx) {
-        deployCircle(centerVrtx, 4, selectedColor, putPixel);
-      } else {
-        deployCircle(centerVrtx, 4, lineColor, putPixel);
-      }
-    }
+    drawControlPoints(putPixel);
   }
 };
 
@@ -318,12 +284,7 @@ public:
       return;
     }
 
-    if (state != FigureState::Unselected &&
-        state != FigureState::SelectVertices) {
-      BoundingBox bb = getBoundingBox();
-      deploySquare(bb.vrtx1, bb.vrtx2, boxColor, putPixel);
-    }
-
+    drawBoundingBox(putPixel);
     // deploy lines because the figure can be edited in any quadrilateral.
     if (std::abs(vrtxs[0].x - vrtxs[1].x) <= 4 ||
         std::abs(vrtxs[0].y - vrtxs[1].y) <= 4) {
@@ -331,22 +292,7 @@ public:
     } else {
       deployEllipse(vrtxs[0], vrtxs[1], lineColor, fillColor, filled, putPixel);
     }
-
-    // Show control points
-    if (state == FigureState::Selected) {
-      for (int i = 0; i < vrtxs.size(); i++) {
-        if (vrtxHover[i]) {
-          deployCircle(vrtxs[i], vrtxRadius, selectedColor, putPixel);
-        } else {
-          deployCircle(vrtxs[i], vrtxRadius, lineColor, putPixel);
-        }
-      }
-      if (hoverCenterVrtx) {
-        deployCircle(centerVrtx, 4, selectedColor, putPixel);
-      } else {
-        deployCircle(centerVrtx, 4, lineColor, putPixel);
-      }
-    }
+    drawControlPoints(putPixel);
   }
 };
 
@@ -361,7 +307,7 @@ int ToolsWindowWidth = 300;
 
 class proyecto1 : public Engine2D {
 private:
-  Color colorFondo = Color(0.1f, 0.1f, 0.15f);
+  Color backgroundColor = Color(0.1f, 0.1f, 0.15f);
   Color colorPincel = Color(1.0f, 0.0f, 0.0f);
   bool dibujando = false;
 
@@ -385,7 +331,7 @@ public:
   bool filled = false;
 
   void setup() override {
-    clear(colorFondo);
+    clear(backgroundColor);
     std::cout << "Motor inicializado exitosamente." << std::endl;
   }
   // Eventos
@@ -394,7 +340,7 @@ public:
       glfwSetWindowShouldClose(window, GLFW_TRUE);
     }
     if (key == GLFW_KEY_SPACE) {
-      clear(colorFondo);
+      clear(backgroundColor);
     }
   }
   void onMouseButtonDown(int button, double x, double y) override {
@@ -511,7 +457,7 @@ public:
   }
 
   void update(float deltaTime) override {
-    clear(Color(0.1f, 0.1f, 0.1f));
+    clear(backgroundColor);
     for (auto &f : figures) {
       f->draw(
           [this](int x, int y, const Color &color) { putPixel(x, y, color); });
@@ -581,6 +527,15 @@ public:
     ImGui::Text("FPS: %.1f", ImGui::GetIO().Framerate);
     ImGui::Separator();
     toolsSection();
+
+    ImGui::SeparatorText("Color de Fondo");
+    float bc[3] = {backgroundColor.r, backgroundColor.g, backgroundColor.b};
+    if (ImGui::ColorEdit3("", bc)) {
+      backgroundColor.r = bc[0];
+      backgroundColor.g = bc[1];
+      backgroundColor.b = bc[2];
+    };
+
     ImGui::Separator();
     ImGui::SeparatorText("Color de Linea");
     float lc[3] = {lineColor.r, lineColor.g, lineColor.b};
