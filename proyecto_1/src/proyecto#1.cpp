@@ -45,7 +45,8 @@ long long mouseDetectionEdgeFunction(Point a, Point b, Point p) {
          static_cast<long long>(p.y - a.y) * (b.x - a.x);
 }
 
-bool isMouseInsideTriangle(Point vrtx1, Point vrtx2, Point vrtx3, int x, int y) {
+bool isMouseInsideTriangle(Point vrtx1, Point vrtx2, Point vrtx3, int x,
+                           int y) {
   Point p{x, y};
   long long area = mouseDetectionEdgeFunction(vrtx1, vrtx2, vrtx3);
   long long w1 = mouseDetectionEdgeFunction(vrtx1, vrtx2, p);
@@ -75,9 +76,8 @@ bool isMouseOverTriangle(Point vrtx1, Point vrtx2, Point vrtx3, int x, int y,
 
 bool isMouseOverRect(Point vrtx1, Point vrtx2, Point vrtx3, Point vrtx4, int x,
                      int y, bool filled) {
-  if (filled &&
-      (isMouseInsideTriangle(vrtx1, vrtx2, vrtx3, x, y) ||
-       isMouseInsideTriangle(vrtx1, vrtx2, vrtx4, x, y))) {
+  if (filled && (isMouseInsideTriangle(vrtx1, vrtx2, vrtx3, x, y) ||
+                 isMouseInsideTriangle(vrtx1, vrtx2, vrtx4, x, y))) {
     return true;
   }
 
@@ -130,7 +130,7 @@ bool isMouseOverEllipse(Point vrtx1, Point vrtx2, int x, int y, bool filled) {
 //////////////////////////////////////////////////////
 class Line : public Figure {
 public:
-  Line(Color line, Color fill): Figure(line, fill) {
+  Line(Color line, Color fill) : Figure(line, fill) {
     type = FigureType::Line;
     maxVertices = 2;
     vrtxs.resize(maxVertices);
@@ -175,7 +175,7 @@ public:
 
 class Rect : public Figure {
 public:
-  Rect(Color line, Color fill): Figure(line, fill) {
+  Rect(Color line, Color fill) : Figure(line, fill) {
     type = FigureType::Rect;
     maxVertices = 4;
     vrtxs.resize(maxVertices);
@@ -183,8 +183,8 @@ public:
   }
 
   void isMouseOver(int x, int y) {
-    mouseOver = isMouseOverRect(vrtxs[0], vrtxs[1], vrtxs[2], vrtxs[3], x, y,
-                                filled);
+    mouseOver =
+        isMouseOverRect(vrtxs[0], vrtxs[1], vrtxs[2], vrtxs[3], x, y, filled);
   }
 
   void updateSecondaryPoints() {
@@ -203,7 +203,8 @@ public:
   }
 
   bool onMouseButtonDown(int button, int x, int y) {
-    if(button != GLFW_MOUSE_BUTTON_LEFT) return false;
+    if (button != GLFW_MOUSE_BUTTON_LEFT)
+      return false;
     bool result = Figure::onMouseButtonDown(button, x, y);
     if (state == FigureState::SelectVertices && selectedVrtx == 2) {
       // assign the other vertices with the recent two
@@ -228,8 +229,10 @@ public:
     }
 
     // deploy lines because the figure can be edited in any quadrilateral.
-    deployFilledTriangle(vrtxs[0], vrtxs[1], vrtxs[2], lineColor, fillColor, filled, putPixel, true);
-    deployFilledTriangle(vrtxs[0], vrtxs[1], vrtxs[3], lineColor, fillColor, filled, putPixel, true);
+    deployFilledTriangle(vrtxs[0], vrtxs[1], vrtxs[2], lineColor, fillColor,
+                         filled, putPixel, true);
+    deployFilledTriangle(vrtxs[0], vrtxs[1], vrtxs[3], lineColor, fillColor,
+                         filled, putPixel, true);
 
     // Show control points
     if (state == FigureState::Selected) {
@@ -251,7 +254,7 @@ public:
 
 class Triangle : public Figure {
 public:
-  Triangle(Color line, Color fill): Figure(line, fill) {
+  Triangle(Color line, Color fill) : Figure(line, fill) {
     type = FigureType::Triangle;
     maxVertices = 3;
     vrtxs.resize(maxVertices);
@@ -259,8 +262,7 @@ public:
   }
 
   void isMouseOver(int x, int y) {
-    mouseOver = isMouseOverTriangle(vrtxs[0], vrtxs[1], vrtxs[2], x, y,
-                                    filled);
+    mouseOver = isMouseOverTriangle(vrtxs[0], vrtxs[1], vrtxs[2], x, y, filled);
   }
 
   void draw(std::function<void(int, int, const Color &)> putPixel) {
@@ -276,7 +278,8 @@ public:
     }
 
     // deploy lines because the figure can be edited in any quadrilateral.
-    deployFilledTriangle(vrtxs[0], vrtxs[1], vrtxs[2], lineColor, fillColor, filled, putPixel);
+    deployFilledTriangle(vrtxs[0], vrtxs[1], vrtxs[2], lineColor, fillColor,
+                         filled, putPixel);
 
     // Show control points
     if (state == FigureState::Selected) {
@@ -298,7 +301,7 @@ public:
 
 class Ellipse : public Figure {
 public:
-  Ellipse(Color line, Color fill): Figure(line, fill) {
+  Ellipse(Color line, Color fill) : Figure(line, fill) {
     type = FigureType::Ellipse;
     maxVertices = 2;
     vrtxs.resize(maxVertices);
@@ -322,9 +325,10 @@ public:
     }
 
     // deploy lines because the figure can be edited in any quadrilateral.
-    if(std::abs(vrtxs[0].x - vrtxs[1].x) <= 4 || std::abs(vrtxs[0].y - vrtxs[1].y) <= 4) {
+    if (std::abs(vrtxs[0].x - vrtxs[1].x) <= 4 ||
+        std::abs(vrtxs[0].y - vrtxs[1].y) <= 4) {
       deployLine(vrtxs[0], vrtxs[1], lineColor, putPixel);
-    }else {
+    } else {
       deployEllipse(vrtxs[0], vrtxs[1], lineColor, fillColor, filled, putPixel);
     }
 
@@ -421,7 +425,7 @@ public:
       currentFigure->setFilled(filled);
       currentTool = ToolsType::Select;
 
-    } else if (currentTool == ToolsType::Ellipse){
+    } else if (currentTool == ToolsType::Ellipse) {
 
       figures.push_back(std::make_unique<Ellipse>(lineColor, fillColor));
       currentFigure = figures.back().get();
@@ -434,11 +438,12 @@ public:
     {
 
       if (currentFigure == nullptr) {
-        for (auto &f : figures) {
-          f->onMouseButtonDown(button, x, y);
-          if (f->mouseOver) {
-            currentFigure = f.get();
-            f->select();
+        for (auto it = figures.rbegin(); it != figures.rend(); ++it) {
+          (*it)->onMouseButtonDown(button, x, y);
+
+          if ((*it)->mouseOver) {
+            currentFigure = it->get();
+            currentFigure->select();
             onSelectFigure();
             break;
           }
@@ -446,13 +451,14 @@ public:
       } else {
         mouseReserved = currentFigure->onMouseButtonDown(button, x, y);
         if (currentTool == ToolsType::Select) {
-          if (!mouseReserved && !currentFigure->mouseOver) {
+          if (!mouseReserved) {
             currentFigure->unselect();
             currentFigure = nullptr;
-            for (auto &f : figures) {
-              f->onMouseButtonDown(button, x, y);
-              if (f->mouseOver) {
-                currentFigure = f.get();
+            for (auto it = figures.rbegin(); it != figures.rend(); ++it) {
+              (*it)->onMouseButtonDown(button, x, y);
+
+              if ((*it)->mouseOver) {
+                currentFigure = it->get();
                 currentFigure->select();
                 onSelectFigure();
                 break;
@@ -466,7 +472,7 @@ public:
 
   void onSelectFigure() {
     lineColor = currentFigure->getLineColor();
-    if(currentFigure->isFilled()){
+    if (currentFigure->isFilled()) {
       fillColor = currentFigure->getFillColor();
     }
   }
@@ -579,26 +585,26 @@ public:
     ImGui::SeparatorText("Color de Linea");
     float lc[3] = {lineColor.r, lineColor.g, lineColor.b};
     float fc[3] = {fillColor.r, fillColor.g, fillColor.b};
-    if(ImGui::ColorEdit3(" ", lc)) {
+    if (ImGui::ColorEdit3(" ", lc)) {
       lineColor.r = lc[0];
       lineColor.g = lc[1];
       lineColor.b = lc[2];
-      if(currentFigure!=nullptr){
-         currentFigure->setLineColor(lineColor);
+      if (currentFigure != nullptr) {
+        currentFigure->setLineColor(lineColor);
       }
     };
     ImGui::SeparatorText("Color de relleno");
-    if(ImGui::ColorEdit3("  ", fc)) {
+    if (ImGui::ColorEdit3("  ", fc)) {
       fillColor.r = fc[0];
       fillColor.g = fc[1];
       fillColor.b = fc[2];
-      if(currentFigure!=nullptr){
-         currentFigure->setFillColor(fillColor);
+      if (currentFigure != nullptr) {
+        currentFigure->setFillColor(fillColor);
       }
     };
-    if(ImGui::Checkbox("Rellenar figura", &filled)){
-      if(currentFigure!=nullptr){
-         currentFigure->setFilled(filled);
+    if (ImGui::Checkbox("Rellenar figura", &filled)) {
+      if (currentFigure != nullptr) {
+        currentFigure->setFilled(filled);
       }
     };
     ImGui::End();
