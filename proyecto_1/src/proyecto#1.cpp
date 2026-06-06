@@ -40,26 +40,89 @@ bool isMouseOverLine(Point vrtx1, Point vrtx2, int x, int y) {
   return z < tolerance * maxD && mouseInX && mouseInY;
 }
 
+long long mouseDetectionEdgeFunction(Point a, Point b, Point p) {
+  return static_cast<long long>(p.x - a.x) * (b.y - a.y) -
+         static_cast<long long>(p.y - a.y) * (b.x - a.x);
+}
 
-bool isMouseOverEllipse(Point vrtx1, Point vrtx2, int x, int y) {
+bool isMouseInsideTriangle(Point vrtx1, Point vrtx2, Point vrtx3, int x, int y) {
+  Point p{x, y};
+  long long area = mouseDetectionEdgeFunction(vrtx1, vrtx2, vrtx3);
+  long long w1 = mouseDetectionEdgeFunction(vrtx1, vrtx2, p);
+  long long w2 = mouseDetectionEdgeFunction(vrtx2, vrtx3, p);
+  long long w3 = mouseDetectionEdgeFunction(vrtx3, vrtx1, p);
+
+  if (area == 0) {
+    return isMouseOverLine(vrtx1, vrtx2, x, y) ||
+           isMouseOverLine(vrtx2, vrtx3, x, y) ||
+           isMouseOverLine(vrtx3, vrtx1, x, y);
+  }
+
+  return area > 0 ? w1 >= 0 && w2 >= 0 && w3 >= 0
+                  : w1 <= 0 && w2 <= 0 && w3 <= 0;
+}
+
+bool isMouseOverTriangle(Point vrtx1, Point vrtx2, Point vrtx3, int x, int y,
+                         bool filled) {
+  if (filled && isMouseInsideTriangle(vrtx1, vrtx2, vrtx3, x, y)) {
+    return true;
+  }
+
+  return isMouseOverLine(vrtx1, vrtx2, x, y) ||
+         isMouseOverLine(vrtx1, vrtx3, x, y) ||
+         isMouseOverLine(vrtx2, vrtx3, x, y);
+}
+
+bool isMouseOverRect(Point vrtx1, Point vrtx2, Point vrtx3, Point vrtx4, int x,
+                     int y, bool filled) {
+  if (filled &&
+      (isMouseInsideTriangle(vrtx1, vrtx2, vrtx3, x, y) ||
+       isMouseInsideTriangle(vrtx1, vrtx2, vrtx4, x, y))) {
+    return true;
+  }
+
+  return isMouseOverLine(vrtx1, vrtx3, x, y) ||
+         isMouseOverLine(vrtx1, vrtx4, x, y) ||
+         isMouseOverLine(vrtx2, vrtx3, x, y) ||
+         isMouseOverLine(vrtx2, vrtx4, x, y);
+}
+
+bool isMouseInsideEllipse(Point vrtx1, Point vrtx2, int x, int y,
+                          int tolerance = 0) {
   int centerX = (vrtx1.x + vrtx2.x) / 2;
   int centerY = (vrtx1.y + vrtx2.y) / 2;
-  int a = std::abs(vrtx1.y - vrtx2.y) / 2;
-  int b = std::abs(vrtx1.x - vrtx2.x) / 2;
+  long long radiusX = std::abs(vrtx1.x - vrtx2.x) / 2 + tolerance;
+  long long radiusY = std::abs(vrtx1.y - vrtx2.y) / 2 + tolerance;
+
+  if (radiusX <= 0 && radiusY <= 0) {
+    return x == centerX && y == centerY;
+  }
+  if (radiusX <= 0 || radiusY <= 0) {
+    return isMouseOverLine(vrtx1, vrtx2, x, y);
+  }
 
   signed long long _x = x - centerX;
   signed long long _y = y - centerY;
 
+  return radiusY * radiusY * _x * _x + radiusX * radiusX * _y * _y <=
+         radiusX * radiusX * radiusY * radiusY;
+}
+
+bool isMouseOverEllipse(Point vrtx1, Point vrtx2, int x, int y, bool filled) {
   int tolerance = 3;
 
-  signed long long ia = a - tolerance; // inner a
-  signed long long ib = b - tolerance; // inner b
-  signed long long oa = a + tolerance; // outer b
-  signed long long ob = b + tolerance; // outer b
+  if (filled && isMouseInsideEllipse(vrtx1, vrtx2, x, y)) {
+    return true;
+  }
 
-  bool isOutOfInnerCircle = (signed long long)ia*ia*_x*_x + ib*ib*_y*_y > (signed long long)ia*ia*ib*ib;
-  bool isInOuterCircle = (signed long long)oa*oa*_x*_x + ob*ob*_y*_y < (signed long long)oa*oa*ob*ob;
-  return isOutOfInnerCircle && isInOuterCircle;
+  int radiusX = std::abs(vrtx1.x - vrtx2.x) / 2;
+  int radiusY = std::abs(vrtx1.y - vrtx2.y) / 2;
+  if (radiusX < tolerance || radiusY < tolerance) {
+    return isMouseOverLine(vrtx1, vrtx2, x, y);
+  }
+
+  return isMouseInsideEllipse(vrtx1, vrtx2, x, y, tolerance) &&
+         !isMouseInsideEllipse(vrtx1, vrtx2, x, y, -tolerance);
 }
 
 //////////////////////////////////////////////////////
@@ -120,10 +183,8 @@ public:
   }
 
   void isMouseOver(int x, int y) {
-    mouseOver = isMouseOverLine(vrtxs[0], vrtxs[2], x, y) ||
-                isMouseOverLine(vrtxs[0], vrtxs[3], x, y) ||
-                isMouseOverLine(vrtxs[1], vrtxs[2], x, y) ||
-                isMouseOverLine(vrtxs[1], vrtxs[3], x, y);
+    mouseOver = isMouseOverRect(vrtxs[0], vrtxs[1], vrtxs[2], vrtxs[3], x, y,
+                                filled);
   }
 
   void updateSecondaryPoints() {
@@ -198,9 +259,8 @@ public:
   }
 
   void isMouseOver(int x, int y) {
-    mouseOver = isMouseOverLine(vrtxs[0], vrtxs[1], x, y) ||
-                isMouseOverLine(vrtxs[0], vrtxs[2], x, y) ||
-                isMouseOverLine(vrtxs[1], vrtxs[2], x, y);
+    mouseOver = isMouseOverTriangle(vrtxs[0], vrtxs[1], vrtxs[2], x, y,
+                                    filled);
   }
 
   void draw(std::function<void(int, int, const Color &)> putPixel) {
@@ -246,12 +306,7 @@ public:
   }
 
   void isMouseOver(int x, int y) {
-    int dx = std::abs(vrtxs[0].x - vrtxs[1].x);
-    int dy = std::abs(vrtxs[0].y - vrtxs[1].y);
-    if(dx < 4 || dy < 4) {
-      mouseOver = isMouseOverLine(vrtxs[0], vrtxs[1], x, y);
-    }
-    mouseOver = isMouseOverEllipse(vrtxs[0], vrtxs[1], x, y);
+    mouseOver = isMouseOverEllipse(vrtxs[0], vrtxs[1], x, y, filled);
   }
 
   void draw(std::function<void(int, int, const Color &)> putPixel) {
@@ -411,7 +466,6 @@ public:
 
   void onSelectFigure() {
     lineColor = currentFigure->getLineColor();
-    printf("lineColor red: %f, lineColorFig red: %f\n", lineColor.r, currentFigure->getLineColor().r);
     if(currentFigure->isFilled()){
       fillColor = currentFigure->getFillColor();
     }
