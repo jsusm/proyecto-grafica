@@ -310,6 +310,7 @@ private:
   Color backgroundColor = Color(0.1f, 0.1f, 0.15f);
   Color colorPincel = Color(1.0f, 0.0f, 0.0f);
   bool dibujando = false;
+  bool isHover = false;
 
 public:
   proyecto1()
@@ -442,16 +443,19 @@ public:
     if (x >= WindowWidth - ToolsWindowWidth) {
       return;
     }
+    isHover = false;
     if (currentFigure != nullptr) {
       mouseReserved = currentFigure->onMouseMove(x, y);
       if (!mouseReserved) {
         for (auto &f : figures) {
           f->onMouseMove(x, y);
+          isHover |= f->mouseOver;
         }
       }
     } else {
       for (auto &f : figures) {
         f->onMouseMove(x, y);
+        isHover |= f->mouseOver;
       }
     }
   }
@@ -516,11 +520,11 @@ public:
     ImGui::SetNextWindowSize(ImVec2(ToolsWindowWidth, WindowHeight));
 
     // Mouse configuration
-    // if (isHover) {
-    //   ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
-    // } else {
-    //   ImGui::SetMouseCursor(ImGuiMouseCursor_Arrow);
-    // }
+    if (isHover) {
+      ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
+    } else {
+      ImGui::SetMouseCursor(ImGuiMouseCursor_Arrow);
+    }
 
     // Begin
     ImGui::Begin("Herramientas", NULL, window_flags);
