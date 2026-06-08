@@ -297,12 +297,13 @@ public:
 class BezierCurve : public Figure {
 private:
   Color boxColor{0.5, 0.5, 0.5};
+  int maxBezierControlPoints = 10;
 
 public:
   BezierCurve(Color line, Color fill) : Figure(line, fill) {
     type = FigureType::BezierCurve;
-    maxVertices = 5;
-    vrtxs.resize(maxVertices);
+    maxVertices = maxBezierControlPoints;
+    vrtxs.resize(maxBezierControlPoints);
     vrtxHover.resize(maxVertices, false);
   }
 
@@ -311,10 +312,10 @@ public:
     std::vector<Point> vrtxsLeft;
     std::vector<Point> vrtxsRight;
     // build the
-    for (size_t i = 0; i < vrtxs.size(); i++) {
+    for (size_t i = 0; i < maxVertices; i++) {
       vrtxsLeft.push_back(calculateCasteljauPoly(i, 0, 0.5, vrtxs));
       vrtxsRight.push_back(
-          calculateCasteljauPoly(i, vrtxs.size() - i - 1, 0.5, vrtxs));
+          calculateCasteljauPoly(i, maxVertices - i - 1, 0.5, vrtxs));
     }
     bool mouseInLeft = mouseInsideBoundingBox(vrtxsLeft, x, y);
     bool mouseInRight = mouseInsideBoundingBox(vrtxsRight, x, y);
@@ -328,6 +329,18 @@ public:
     } else {
       return isMouseOverBezierCurve(vrtxsRight, x, y, level + 1);
     }
+  }
+
+  bool onMouseButtonDown(int button, int x, int y) {
+    if(button == GLFW_MOUSE_BUTTON_RIGHT) {
+      if(state == FigureState::SelectVertices) {
+        maxVertices = selectedVrtx;
+        updateCenterPoint();
+        stateMachine(0);
+        return false;
+      }
+    }
+    return Figure::onMouseButtonDown(button, x, y);
   }
 
   void isMouseOver(int x, int y) {
@@ -346,26 +359,14 @@ public:
 
   void draw(std::function<void(int, int, const Color &)> putPixel) {
     // do not show the line if we are selecting the starting node
-    if (vrtxs.size() == 0) {
-      return;
-    }
-
     drawBoundingBox(putPixel);
 
     Point prevPoint = vrtxs[0];
 
     if (state == FigureState::Selected || state == FigureState::DragVertex ||
         state == FigureState::SelectVertices) {
-      bool populateFirst = false;
-      prevPoint = vrtxs[0];
-      for (auto it = vrtxs.begin(); it != vrtxs.end(); ++it) {
-        if (!populateFirst) {
-          populateFirst = true;
-          prevPoint = *it;
-          continue;
-        }
-        deployLine(prevPoint, *it, boxColor, putPixel);
-        prevPoint = *it;
+      for (int i = 1; i < maxVertices; i++) {
+        deployLine(vrtxs[i-1], vrtxs[i], boxColor, putPixel);
       }
     }
 

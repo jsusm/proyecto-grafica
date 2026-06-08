@@ -73,9 +73,7 @@ protected:
   void stateMachine(int branch) {
     switch (state) {
     case FigureState::SelectVertices:
-      if (vrtxs.size() == maxVertices) {
-        state = FigureState::Selected;
-      }
+      state = FigureState::Selected;
       break;
     case FigureState::DragVertex:
       state = FigureState::Selected;
@@ -106,7 +104,7 @@ protected:
   }
 
   void updateVrtxHover(int x, int y) {
-    for (int i = 0; i < vrtxs.size(); i++) {
+    for (int i = 0; i < maxVertices; i++) {
       vrtxHover[i] = mouseInVrtx(vrtxs[i], x, y);
     }
     hoverCenterVrtx = mouseInVrtx(centerVrtx, x, y);
@@ -115,12 +113,13 @@ protected:
   void updateCenterPoint() {
     int x = 0;
     int y = 0;
-    for (Point p : vrtxs) {
+    for (int i = 0; i < maxVertices; i++) {
+      Point p = vrtxs[i];
       x += p.x;
       y += p.y;
     }
-    x /= vrtxs.size();
-    y /= vrtxs.size();
+    x /= maxVertices;
+    y /= maxVertices;
     centerVrtx.x = x;
     centerVrtx.y = y;
   }
@@ -139,7 +138,7 @@ protected:
     // Show control points
     if (state == FigureState::Selected) {
       int r = vrtxRadius;
-      for (int i = 0; i < vrtxs.size(); i++) {
+      for (int i = 0; i < maxVertices; i++) {
         if (vrtxHover[i]) {
           deployCircle(vrtxs[i], r + 1, selectVrtxLineContrast,
                        selectVrtxLineContrast, false, putPixel);
