@@ -341,6 +341,7 @@ public:
       vrtxs[i].x = v[i].x;
       vrtxs[i].y = v[i].y;
     }
+    maxVertices = v.size();
     updateCenterPoint();
   }
 

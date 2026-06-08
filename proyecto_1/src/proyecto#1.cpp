@@ -600,6 +600,25 @@ public:
     return false;
   }
 
+  bool deleteCurrentFigure() {
+    if (currentFigure == nullptr) {
+      return false;
+    }
+
+    for (auto it = figures.begin(); it != figures.end(); ++it) {
+      if (it->get() == currentFigure) {
+        figures.erase(it);
+        currentFigure = nullptr;
+        mouseReserved = false;
+        isHover = false;
+        return true;
+      }
+    }
+
+    currentFigure = nullptr;
+    return false;
+  }
+
   // Eventos
   void onkeyDown(int key) override {
     if (key == GLFW_KEY_Q) {
@@ -607,6 +626,9 @@ public:
     }
     if (key == GLFW_KEY_SPACE) {
       clear(backgroundColor);
+    }
+    if (key == GLFW_KEY_BACKSPACE) {
+      deleteCurrentFigure();
     }
   }
   void onMouseButtonDown(int button, double x, double y) override {
@@ -851,16 +873,20 @@ public:
     };
     ImGui::SeparatorText("Controles de Figura");
     if (currentFigure != nullptr) {
-      if (ImGui::Button("Move Figure to Foward")) {
-        elevateCurrentFigure();
-      }
-      if (ImGui::Button("Move Figure to Backward")) {
-        sinkCurrentFigure();
-      }
-      if (currentFigure->type == FigureType::BezierCurve) {
-        if (ImGui::Button("Elevate Bezier Curve Grade")) {
-          BezierCurve *bc = static_cast<BezierCurve *>(currentFigure);
-          bc->elevateGrade();
+      if (ImGui::Button("Delete Figure")) {
+        deleteCurrentFigure();
+      } else {
+        if (ImGui::Button("Move Figure to Foward")) {
+          elevateCurrentFigure();
+        }
+        if (ImGui::Button("Move Figure to Backward")) {
+          sinkCurrentFigure();
+        }
+        if (currentFigure->type == FigureType::BezierCurve) {
+          if (ImGui::Button("Elevate Bezier Curve Grade")) {
+            BezierCurve *bc = static_cast<BezierCurve *>(currentFigure);
+            bc->elevateGrade();
+          }
         }
       }
     }
