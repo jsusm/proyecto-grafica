@@ -200,6 +200,7 @@ public:
   Color getFillColor() { return fillColor; }
   void setFilled(bool value) { filled = value; }
   bool isFilled() { return filled; }
+  const std::vector<Point> &getVrtxs() const { return vrtxs; }
 
   void select() {
     switch (state) {
@@ -333,6 +334,14 @@ public:
     return false;
   }
 
+  void loadVrtxs(std::vector<Point> v){
+    vrtxs.resize(v.size());
+    vrtxHover.resize(v.size(), false);
+    for(int i = 0; i < v.size(); i++){
+      vrtxs[i].x = v[i].x;
+      vrtxs[i].y = v[i].y;
+    }
+  }
   // if this methods return true that means the mouse is "taken"
   // no other figure can interact with the mouse, like when the
   // user is dragging the figure, if return false the mouse

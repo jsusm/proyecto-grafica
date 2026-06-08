@@ -1,5 +1,6 @@
 ﻿#include "engine2D.h"
 #include "imgui.h"
+#include "persistFigures.h"
 #include "primitives.h"
 #include <algorithm>
 #include <cstdio>
@@ -32,8 +33,7 @@ bool isMouseOverLine(Point vrtx1, Point vrtx2, int x, int y) {
   double distanceX = static_cast<double>(x) - closestX;
   double distanceY = static_cast<double>(y) - closestY;
 
-  return distanceX * distanceX + distanceY * distanceY <=
-         tolerance * tolerance;
+  return distanceX * distanceX + distanceY * distanceY <= tolerance * tolerance;
 }
 
 long long mouseDetectionEdgeFunction(Point a, Point b, Point p) {
@@ -443,8 +443,8 @@ public:
   }
 
   bool onMouseButtonUp(int button, int x, int y) {
-    bool wasChangingCurve = state == FigureState::DragVertex ||
-                            state == FigureState::DragFigure;
+    bool wasChangingCurve =
+        state == FigureState::DragVertex || state == FigureState::DragFigure;
     bool result = Figure::onMouseButtonUp(button, x, y);
     if (wasChangingCurve) {
       curveDirty = true;
@@ -522,7 +522,53 @@ public:
   void setup() override {
     clear(backgroundColor);
     std::cout << "Motor inicializado exitosamente." << std::endl;
+    SerializedFiguresFile fileFigures = loadFigures();
+    for (auto &f : fileFigures.figures) {
+      auto figureType = static_cast<FigureType>(f.type);
+      switch (figureType) {
+      case FigureType::Line:
+        figures.push_back(std::make_unique<Line>(f.lineColor, f.fillColor));
+        break;
+      case FigureType::Rect:
+        figures.push_back(std::make_unique<Rect>(f.lineColor, f.fillColor));
+        break;
+      case FigureType::Triangle:
+        figures.push_back(std::make_unique<Triangle>(f.lineColor, f.fillColor));
+        break;
+      case FigureType::Ellipse:
+        figures.push_back(std::make_unique<Ellipse>(f.lineColor, f.fillColor));
+        break;
+      case FigureType::BezierCurve:
+        figures.push_back(
+            std::make_unique<BezierCurve>(f.lineColor, f.fillColor));
+        break;
+      }
+      currentFigure = figures.back().get();
+      currentFigure->setFilled(f.filled);
+      currentFigure->loadVrtxs(f.points);
+    }
   }
+
+  SerializedFiguresFile collectSerializedFigures() {
+    SerializedFiguresFile serializedFiguresFile{};
+    serializedFiguresFile.figures.reserve(figures.size());
+
+    for (const auto &figure : figures) {
+      SerializedFigure serializedFigure{};
+      serializedFigure.type = figure->type;
+      serializedFigure.lineColor = figure->getLineColor();
+      serializedFigure.fillColor = figure->getFillColor();
+      serializedFigure.filled = figure->isFilled();
+      serializedFigure.points = figure->getVrtxs();
+      serializedFigure.nPoints = serializedFigure.points.size();
+
+      serializedFiguresFile.figures.push_back(serializedFigure);
+    }
+
+    serializedFiguresFile.nFigures = serializedFiguresFile.figures.size();
+    return serializedFiguresFile;
+  }
+
   // Eventos
   void onkeyDown(int key) override {
     if (key == GLFW_KEY_Q) {
@@ -728,6 +774,9 @@ public:
     // Begin
     ImGui::Begin("Herramientas", NULL, window_flags);
     ImGui::Text("FPS: %.1f", ImGui::GetIO().Framerate);
+    if(ImGui::Button("Guardar en disco")) {
+      saveFigures(collectSerializedFigures());
+    }
     ImGui::Separator();
     toolsSection();
 
