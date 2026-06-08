@@ -24,10 +24,10 @@ enum class FigureState {
 void deployLine(Point start, Point end, const Color &color,
                 std::function<void(int, int, const Color &)> putPixel);
 
-void deploySquare(Point vrtx1, Point vrtx2, const Color &color,
+void deployRect(Point vrtx1, Point vrtx2, const Color &color,
                   std::function<void(int, int, const Color &)> putPixel);
 
-void deployFilledSquare(Point vrtx1, Point vrtx2, const Color &color,
+void deployFilledRect(Point vrtx1, Point vrtx2, const Color &color,
                         std::function<void(int, int, const Color &)> putPixel);
 
 void deployFilledTriangle(Point vrtx1, Point vrtx2, Point vrtx3,
@@ -128,7 +128,7 @@ protected:
     if (state != FigureState::Unselected &&
         state != FigureState::SelectVertices) {
       BoundingBox bb = getBoundingBox();
-      deploySquare(Point(bb.vrtx1.x - 4, bb.vrtx1.y - 4),
+      deployRect(Point(bb.vrtx1.x - 4, bb.vrtx1.y - 4),
                    Point(bb.vrtx2.x + 4, bb.vrtx2.y + 4), boxColor, putPixel);
     }
   }

@@ -69,7 +69,7 @@ void deployLine(Point start, Point end, const Color &color,
   }
 }
 
-void deploySquare(Point vrtx1, Point vrtx2, const Color &color,
+void deployRect(Point vrtx1, Point vrtx2, const Color &color,
                   std::function<void(int, int, const Color &)> putPixel) {
   deployLine(Point(vrtx1.x, vrtx1.y), Point(vrtx2.x, vrtx1.y), color, putPixel);
   deployLine(Point(vrtx1.x, vrtx1.y), Point(vrtx1.x, vrtx2.y), color, putPixel);
@@ -77,7 +77,7 @@ void deploySquare(Point vrtx1, Point vrtx2, const Color &color,
   deployLine(Point(vrtx2.x, vrtx1.y), Point(vrtx2.x, vrtx2.y), color, putPixel);
 }
 
-void deployFilledSquare(Point vrtx1, Point vrtx2, const Color &color,
+void deployFilledRect(Point vrtx1, Point vrtx2, const Color &color,
                         std::function<void(int, int, const Color &)> putPixel) {
   int minX = std::min(vrtx1.x, vrtx2.x);
   int maxX = std::max(vrtx1.x, vrtx2.x);
