@@ -44,7 +44,7 @@ void deployCircle(Point center, int radius, const Color &lineColor,
                   const Color &fillColor, bool fill,
                   std::function<void(int, int, const Color &)> putPixel);
 
-enum class FigureType { Line, Rect, Triangle, Ellipse, Unknown };
+enum class FigureType { Line, Rect, Triangle, Ellipse, BezierCurve, Unknown };
 
 class Figure {
 protected:

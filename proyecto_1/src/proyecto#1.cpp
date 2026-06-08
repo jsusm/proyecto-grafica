@@ -7,6 +7,7 @@
 #include <functional>
 #include <iostream>
 #include <memory>
+#include <vector>
 
 //////////////////////////////////////
 // Mouse Detection
@@ -123,6 +124,20 @@ bool isMouseOverEllipse(Point vrtx1, Point vrtx2, int x, int y, bool filled) {
 
   return isMouseInsideEllipse(vrtx1, vrtx2, x, y, tolerance) &&
          !isMouseInsideEllipse(vrtx1, vrtx2, x, y, -tolerance);
+}
+
+bool mouseInsideBoundingBox(std::vector<Point> vrtxs, int x, int y) {
+  int minX = vrtxs[0].x;
+  int minY = vrtxs[0].y;
+  int maxX = vrtxs[0].x;
+  int maxY = vrtxs[0].y;
+  for (auto &p : vrtxs) {
+    minX = std::min(minX, p.x);
+    minY = std::min(minY, p.y);
+    maxX = std::max(maxX, p.x);
+    maxY = std::max(maxY, p.y);
+  }
+  return x >= minX && x <= maxX && y >= minY && y <= maxY;
 }
 
 //////////////////////////////////////////////////////
@@ -279,10 +294,103 @@ public:
   }
 };
 
+class BezierCurve : public Figure {
+private:
+  Color boxColor{0.5, 0.5, 0.5};
+
+public:
+  BezierCurve(Color line, Color fill) : Figure(line, fill) {
+    type = FigureType::BezierCurve;
+    maxVertices = 5;
+    vrtxs.resize(maxVertices);
+    vrtxHover.resize(maxVertices, false);
+  }
+
+  bool isMouseOverBezierCurve(std::vector<Point> &vrtxs, int x, int y,
+                              int level = 0) {
+    std::vector<Point> vrtxsLeft;
+    std::vector<Point> vrtxsRight;
+    // build the
+    for (size_t i = 0; i < vrtxs.size(); i++) {
+      vrtxsLeft.push_back(calculateCasteljauPoly(i, 0, 0.5, vrtxs));
+      vrtxsRight.push_back(
+          calculateCasteljauPoly(i, vrtxs.size() - i - 1, 0.5, vrtxs));
+    }
+    bool mouseInLeft = mouseInsideBoundingBox(vrtxsLeft, x, y);
+    bool mouseInRight = mouseInsideBoundingBox(vrtxsRight, x, y);
+    if (!mouseInLeft && !mouseInRight)
+      return false;
+    if (level >= 3)
+      return mouseInLeft || mouseInRight;
+
+    if (mouseInLeft) {
+      return isMouseOverBezierCurve(vrtxsLeft, x, y, level + 1);
+    } else {
+      return isMouseOverBezierCurve(vrtxsRight, x, y, level + 1);
+    }
+  }
+
+  void isMouseOver(int x, int y) {
+    mouseOver = isMouseOverBezierCurve(vrtxs, x, y);
+  }
+
+  Point calculateCasteljauPoly(int deg, int idx, float t,
+                               std::vector<Point> &vrtxs) {
+    if (deg != 0) {
+      Point p1 = calculateCasteljauPoly(deg - 1, idx, t, vrtxs);
+      Point p2 = calculateCasteljauPoly(deg - 1, idx + 1, t, vrtxs);
+      return Point((1 - t) * p1.x + t * p2.x, (1 - t) * p1.y + t * p2.y);
+    }
+    return vrtxs[idx];
+  }
+
+  void draw(std::function<void(int, int, const Color &)> putPixel) {
+    // do not show the line if we are selecting the starting node
+    if (vrtxs.size() == 0) {
+      return;
+    }
+
+    drawBoundingBox(putPixel);
+
+    Point prevPoint = vrtxs[0];
+
+    if (state == FigureState::Selected || state == FigureState::DragVertex ||
+        state == FigureState::SelectVertices) {
+      bool populateFirst = false;
+      prevPoint = vrtxs[0];
+      for (auto it = vrtxs.begin(); it != vrtxs.end(); ++it) {
+        if (!populateFirst) {
+          populateFirst = true;
+          prevPoint = *it;
+          continue;
+        }
+        deployLine(prevPoint, *it, boxColor, putPixel);
+        prevPoint = *it;
+      }
+    }
+
+    prevPoint = vrtxs[0];
+    int tSteps = 40;
+    for (int inc = 0; inc < tSteps; inc++) {
+      float t = (float)inc / (float)tSteps;
+      int deg =
+          state == FigureState::SelectVertices ? selectedVrtx : maxVertices - 1;
+      Point currPoint = calculateCasteljauPoly(deg, 0, t, vrtxs);
+      deployLine(prevPoint, currPoint, lineColor, putPixel);
+      prevPoint = currPoint;
+    }
+    int lastVrtxIdx =
+        state == FigureState::SelectVertices ? selectedVrtx : maxVertices - 1;
+    deployLine(prevPoint, vrtxs[lastVrtxIdx], lineColor, putPixel);
+
+    drawControlPoints(putPixel);
+  }
+};
+
 //////////////////////////////////////////////////////
 // Figure Interface and Coordinator
 //////////////////////////////////////////////////////
-enum class ToolsType { Line, Select, Triangle, Ellipse, Rect };
+enum class ToolsType { Line, Select, Triangle, Ellipse, Rect, BezierCurve };
 
 int WindowWidth = 1400;
 int WindowHeight = 720;
@@ -358,6 +466,14 @@ public:
     } else if (currentTool == ToolsType::Ellipse) {
 
       figures.push_back(std::make_unique<Ellipse>(lineColor, fillColor));
+      currentFigure = figures.back().get();
+      currentFigure->onMouseButtonDown(button, x, y);
+      currentFigure->setFilled(filled);
+      currentTool = ToolsType::Select;
+
+    } else if (currentTool == ToolsType::BezierCurve) {
+
+      figures.push_back(std::make_unique<BezierCurve>(lineColor, fillColor));
       currentFigure = figures.back().get();
       currentFigure->onMouseButtonDown(button, x, y);
       currentFigure->setFilled(filled);
@@ -453,6 +569,10 @@ public:
 
   void toolsSection() {
     ImGui::SeparatorText("Herramientas");
+    if (ImGui::Button("Select")) {
+      currentTool = ToolsType::Select;
+    }
+    ImGui::SameLine();
     if (ImGui::Button("Line")) {
       currentTool = ToolsType::Line;
       if (currentFigure != nullptr) {
@@ -476,7 +596,6 @@ public:
         currentFigure = nullptr;
       }
     }
-    ImGui::SameLine();
     if (ImGui::Button("Ellipse")) {
       currentTool = ToolsType::Ellipse;
       if (currentFigure != nullptr) {
@@ -485,8 +604,8 @@ public:
       }
     }
     ImGui::SameLine();
-    if (ImGui::Button("Select")) {
-      currentTool = ToolsType::Select;
+    if (ImGui::Button("Curva de Bezier")) {
+      currentTool = ToolsType::BezierCurve;
     }
   }
 
