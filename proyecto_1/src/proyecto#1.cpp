@@ -297,7 +297,7 @@ public:
 class BezierCurve : public Figure {
 private:
   Color boxColor{0.5, 0.5, 0.5};
-  int maxBezierControlPoints = 10;
+  int maxBezierControlPoints = 20;
 
 public:
   BezierCurve(Color line, Color fill) : Figure(line, fill) {
@@ -305,6 +305,35 @@ public:
     maxVertices = maxBezierControlPoints;
     vrtxs.resize(maxBezierControlPoints);
     vrtxHover.resize(maxVertices, false);
+  }
+
+  bool elevateGrade() {
+    if (maxVertices >= maxBezierControlPoints) {
+      return false;
+    }
+
+    int oldMaxVertices = maxVertices;
+    int newMaxVertices = oldMaxVertices + 1;
+    std::vector<Point> elevatedVrtxs(newMaxVertices);
+
+    elevatedVrtxs[0] = vrtxs[0];
+    elevatedVrtxs[newMaxVertices - 1] = vrtxs[oldMaxVertices - 1];
+
+    for (int i = 1; i < oldMaxVertices; i++) {
+      float alpha =
+          static_cast<float>(i) / static_cast<float>(newMaxVertices - 1);
+      elevatedVrtxs[i].x = static_cast<int>(alpha * vrtxs[i - 1].x +
+                                            (1.0f - alpha) * vrtxs[i].x);
+      elevatedVrtxs[i].y = static_cast<int>(alpha * vrtxs[i - 1].y +
+                                            (1.0f - alpha) * vrtxs[i].y);
+    }
+
+    maxVertices = newMaxVertices;
+    for (int i = 0; i < maxVertices; i++) {
+      vrtxs[i] = elevatedVrtxs[i];
+    }
+    updateCenterPoint();
+    return true;
   }
 
   bool isMouseOverBezierCurve(std::vector<Point> &vrtxs, int x, int y,
@@ -332,12 +361,12 @@ public:
   }
 
   bool onMouseButtonDown(int button, int x, int y) {
-    if(button == GLFW_MOUSE_BUTTON_RIGHT) {
-      if(state == FigureState::SelectVertices) {
+    if (button == GLFW_MOUSE_BUTTON_RIGHT) {
+      if (state == FigureState::SelectVertices) {
         maxVertices = selectedVrtx;
         updateCenterPoint();
         stateMachine(0);
-        return false;
+        return true;
       }
     }
     return Figure::onMouseButtonDown(button, x, y);
@@ -366,7 +395,7 @@ public:
     if (state == FigureState::Selected || state == FigureState::DragVertex ||
         state == FigureState::SelectVertices) {
       for (int i = 1; i < maxVertices; i++) {
-        deployLine(vrtxs[i-1], vrtxs[i], boxColor, putPixel);
+        deployLine(vrtxs[i - 1], vrtxs[i], boxColor, putPixel);
       }
     }
 
@@ -669,6 +698,15 @@ public:
         currentFigure->setFilled(filled);
       }
     };
+    ImGui::SeparatorText("Controles de Figura");
+    if (currentFigure != nullptr) {
+      if (currentFigure->type == FigureType::BezierCurve) {
+        if (ImGui::Button("Elevate Bezier Curve Grade")) {
+          BezierCurve *bc = static_cast<BezierCurve *>(currentFigure);
+          bc->elevateGrade();
+        }
+      }
+    }
     ImGui::End();
   }
 };
