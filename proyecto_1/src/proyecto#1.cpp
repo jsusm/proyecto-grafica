@@ -546,6 +546,7 @@ public:
       currentFigure = figures.back().get();
       currentFigure->setFilled(f.filled);
       currentFigure->loadVrtxs(f.points);
+      currentFigure->setState(FigureState::Unselected);
     }
   }
 
@@ -567,6 +568,36 @@ public:
 
     serializedFiguresFile.nFigures = serializedFiguresFile.figures.size();
     return serializedFiguresFile;
+  }
+
+  bool elevateCurrentFigure() {
+    if (currentFigure == nullptr || figures.size() < 2) {
+      return false;
+    }
+
+    for (size_t i = 0; i + 1 < figures.size(); i++) {
+      if (figures[i].get() == currentFigure) {
+        std::swap(figures[i], figures[i + 1]);
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  bool sinkCurrentFigure() {
+    if (currentFigure == nullptr || figures.size() < 2) {
+      return false;
+    }
+
+    for (size_t i = 1; i < figures.size(); i++) {
+      if (figures[i].get() == currentFigure) {
+        std::swap(figures[i], figures[i - 1]);
+        return true;
+      }
+    }
+
+    return false;
   }
 
   // Eventos
@@ -749,6 +780,10 @@ public:
     ImGui::SameLine();
     if (ImGui::Button("Curva de Bezier")) {
       currentTool = ToolsType::BezierCurve;
+      if (currentFigure != nullptr) {
+        currentFigure->unselect();
+        currentFigure = nullptr;
+      }
     }
   }
 
@@ -774,7 +809,7 @@ public:
     // Begin
     ImGui::Begin("Herramientas", NULL, window_flags);
     ImGui::Text("FPS: %.1f", ImGui::GetIO().Framerate);
-    if(ImGui::Button("Guardar en disco")) {
+    if (ImGui::Button("Guardar en disco")) {
       saveFigures(collectSerializedFigures());
     }
     ImGui::Separator();
@@ -816,6 +851,12 @@ public:
     };
     ImGui::SeparatorText("Controles de Figura");
     if (currentFigure != nullptr) {
+      if (ImGui::Button("Move Figure to Foward")) {
+        elevateCurrentFigure();
+      }
+      if (ImGui::Button("Move Figure to Backward")) {
+        sinkCurrentFigure();
+      }
       if (currentFigure->type == FigureType::BezierCurve) {
         if (ImGui::Button("Elevate Bezier Curve Grade")) {
           BezierCurve *bc = static_cast<BezierCurve *>(currentFigure);
