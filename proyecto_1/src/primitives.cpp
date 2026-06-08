@@ -5,6 +5,24 @@
 
 void deployLine(Point start, Point end, const Color &color,
                 std::function<void(int, int, const Color &)> putPixel) {
+  if (start.y == end.y) {
+    int minX = std::min(start.x, end.x);
+    int maxX = std::max(start.x, end.x);
+    for (int x = minX; x <= maxX; x++) {
+      putPixel(x, start.y, color);
+    }
+    return;
+  }
+
+  if (start.x == end.x) {
+    int minY = std::min(start.y, end.y);
+    int maxY = std::max(start.y, end.y);
+    for (int y = minY; y <= maxY; y++) {
+      putPixel(start.x, y, color);
+    }
+    return;
+  }
+
   int x = start.x;
   int y = start.y;
   int dx = std::abs(end.x - start.x);
