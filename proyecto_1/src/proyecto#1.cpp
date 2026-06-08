@@ -13,32 +13,27 @@
 // Mouse Detection
 //////////////////////////////////////
 bool isMouseOverLine(Point vrtx1, Point vrtx2, int x, int y) {
-  int a, b, c;
-  a = vrtx1.y - vrtx2.y;          // -dy
-  b = vrtx2.x - vrtx1.x;          // dx
-  c = -vrtx1.y * b - vrtx1.x * a; // -y0*dx + x0*dy
-  int z = std::abs(a * x + b * y + c);
-  int tolerance = 16;
-  int maxD = std::max(std::abs(a), std::abs(b));
+  const double tolerance = 8.0;
+  double dx = static_cast<double>(vrtx2.x - vrtx1.x);
+  double dy = static_cast<double>(vrtx2.y - vrtx1.y);
+  double px = static_cast<double>(x - vrtx1.x);
+  double py = static_cast<double>(y - vrtx1.y);
+  double lengthSquared = dx * dx + dy * dy;
 
-  int minX = vrtx1.x < vrtx2.x ? vrtx1.x : vrtx2.x;
-  int minY = vrtx1.y < vrtx2.y ? vrtx1.y : vrtx2.y;
-
-  int maxX = vrtx1.x >= vrtx2.x ? vrtx1.x : vrtx2.x;
-  int maxY = vrtx1.y >= vrtx2.y ? vrtx1.y : vrtx2.y;
-
-  bool mouseInX = x >= minX && x <= maxX;
-  bool mouseInY = y >= minY && y <= maxY;
-  // if the line is too vertical or too horizontal
-  // only check the proximity through the line equation
-  if (std::abs(b) < 10) {
-    mouseInX = true;
-  }
-  if (std::abs(a) < 10) {
-    mouseInY = true;
+  if (lengthSquared == 0.0) {
+    return px * px + py * py <= tolerance * tolerance;
   }
 
-  return z < tolerance * maxD && mouseInX && mouseInY;
+  double t = (px * dx + py * dy) / lengthSquared;
+  t = std::max(0.0, std::min(1.0, t));
+
+  double closestX = static_cast<double>(vrtx1.x) + t * dx;
+  double closestY = static_cast<double>(vrtx1.y) + t * dy;
+  double distanceX = static_cast<double>(x) - closestX;
+  double distanceY = static_cast<double>(y) - closestY;
+
+  return distanceX * distanceX + distanceY * distanceY <=
+         tolerance * tolerance;
 }
 
 long long mouseDetectionEdgeFunction(Point a, Point b, Point p) {
@@ -297,21 +292,79 @@ public:
 class BezierCurve : public Figure {
 private:
   Color boxColor{0.5, 0.5, 0.5};
-  int maxBezierControlPoints = 20;
+  int minTSteps = 40;
+  bool curveDirty = true;
+  std::vector<Point> curvePoints;
+
+  int getActiveControlPointCount() {
+    if (state == FigureState::SelectVertices) {
+      return selectedVrtx + 1;
+    }
+    return maxVertices;
+  }
+
+  int getCurveStepCount(int controlPointCount) {
+    return std::max(minTSteps, controlPointCount * 4);
+  }
+
+  void ensureSelectionPreviewPoint(int x, int y) {
+    if (selectedVrtx >= static_cast<int>(vrtxs.size())) {
+      vrtxs.push_back(Point{x, y});
+      vrtxHover.push_back(false);
+    }
+  }
+
+  Point calculateBezierPoint(int controlPointCount, float t,
+                             std::vector<float> &x, std::vector<float> &y) {
+    for (int i = 0; i < controlPointCount; i++) {
+      x[i] = static_cast<float>(vrtxs[i].x);
+      y[i] = static_cast<float>(vrtxs[i].y);
+    }
+
+    for (int level = 1; level < controlPointCount; level++) {
+      for (int i = 0; i < controlPointCount - level; i++) {
+        x[i] = (1.0f - t) * x[i] + t * x[i + 1];
+        y[i] = (1.0f - t) * y[i] + t * y[i + 1];
+      }
+    }
+
+    return Point{static_cast<int>(x[0]), static_cast<int>(y[0])};
+  }
+
+  void updateCurveCache() {
+    if (!curveDirty) {
+      return;
+    }
+
+    int controlPointCount = getActiveControlPointCount();
+    if (controlPointCount < 2) {
+      curvePoints.clear();
+      curveDirty = false;
+      return;
+    }
+
+    curvePoints.clear();
+    int tSteps = getCurveStepCount(controlPointCount);
+    curvePoints.reserve(tSteps + 1);
+    std::vector<float> x(controlPointCount);
+    std::vector<float> y(controlPointCount);
+    for (int inc = 0; inc <= tSteps; inc++) {
+      float t = static_cast<float>(inc) / static_cast<float>(tSteps);
+      curvePoints.push_back(calculateBezierPoint(controlPointCount, t, x, y));
+    }
+
+    curveDirty = false;
+  }
 
 public:
   BezierCurve(Color line, Color fill) : Figure(line, fill) {
     type = FigureType::BezierCurve;
-    maxVertices = maxBezierControlPoints;
-    vrtxs.resize(maxBezierControlPoints);
-    vrtxHover.resize(maxVertices, false);
+    maxVertices = 1;
+    vrtxs.resize(1);
+    vrtxHover.resize(1, false);
   }
 
   bool elevateGrade() {
-    if (maxVertices >= maxBezierControlPoints) {
-      return false;
-    }
-
     int oldMaxVertices = maxVertices;
     int newMaxVertices = oldMaxVertices + 1;
     std::vector<Point> elevatedVrtxs(newMaxVertices);
@@ -329,89 +382,103 @@ public:
     }
 
     maxVertices = newMaxVertices;
+    vrtxs.resize(maxVertices);
+    vrtxHover.resize(maxVertices, false);
     for (int i = 0; i < maxVertices; i++) {
       vrtxs[i] = elevatedVrtxs[i];
     }
     updateCenterPoint();
+    curveDirty = true;
     return true;
   }
 
-  bool isMouseOverBezierCurve(std::vector<Point> &vrtxs, int x, int y,
-                              int level = 0) {
-    std::vector<Point> vrtxsLeft;
-    std::vector<Point> vrtxsRight;
-    // build the
-    for (size_t i = 0; i < maxVertices; i++) {
-      vrtxsLeft.push_back(calculateCasteljauPoly(i, 0, 0.5, vrtxs));
-      vrtxsRight.push_back(
-          calculateCasteljauPoly(i, maxVertices - i - 1, 0.5, vrtxs));
-    }
-    bool mouseInLeft = mouseInsideBoundingBox(vrtxsLeft, x, y);
-    bool mouseInRight = mouseInsideBoundingBox(vrtxsRight, x, y);
-    if (!mouseInLeft && !mouseInRight)
-      return false;
-    if (level >= 3)
-      return mouseInLeft || mouseInRight;
-
-    if (mouseInLeft) {
-      return isMouseOverBezierCurve(vrtxsLeft, x, y, level + 1);
-    } else {
-      return isMouseOverBezierCurve(vrtxsRight, x, y, level + 1);
-    }
-  }
-
   bool onMouseButtonDown(int button, int x, int y) {
-    if (button == GLFW_MOUSE_BUTTON_RIGHT) {
-      if (state == FigureState::SelectVertices) {
-        maxVertices = selectedVrtx;
-        updateCenterPoint();
-        stateMachine(0);
+    if (state == FigureState::SelectVertices) {
+      if (button == GLFW_MOUSE_BUTTON_RIGHT) {
+        if (selectedVrtx >= 2) {
+          maxVertices = selectedVrtx;
+          vrtxs.resize(maxVertices);
+          vrtxHover.resize(maxVertices, false);
+          updateCenterPoint();
+          stateMachine(0);
+          curveDirty = true;
+          return true;
+        }
+        return false;
+      }
+
+      if (button == GLFW_MOUSE_BUTTON_LEFT) {
+        ensureSelectionPreviewPoint(x, y);
+        vrtxs[selectedVrtx] = Point{x, y};
+        selectedVrtx++;
+        ensureSelectionPreviewPoint(x, y);
+        vrtxs[selectedVrtx] = Point{x, y};
+        curveDirty = true;
         return true;
       }
+
+      return false;
     }
-    return Figure::onMouseButtonDown(button, x, y);
+
+    bool result = Figure::onMouseButtonDown(button, x, y);
+    return result;
+  }
+
+  bool onMouseMove(int x, int y) {
+    if (state == FigureState::SelectVertices) {
+      ensureSelectionPreviewPoint(x, y);
+      vrtxs[selectedVrtx] = Point{x, y};
+      curveDirty = true;
+      return true;
+    }
+
+    bool wasChangingCurve = state == FigureState::SelectVertices ||
+                            state == FigureState::DragVertex ||
+                            state == FigureState::DragFigure;
+    bool result = Figure::onMouseMove(x, y);
+    if (wasChangingCurve && result) {
+      curveDirty = true;
+    }
+    return result;
+  }
+
+  bool onMouseButtonUp(int button, int x, int y) {
+    bool wasChangingCurve = state == FigureState::DragVertex ||
+                            state == FigureState::DragFigure;
+    bool result = Figure::onMouseButtonUp(button, x, y);
+    if (wasChangingCurve) {
+      curveDirty = true;
+    }
+    return result;
   }
 
   void isMouseOver(int x, int y) {
-    mouseOver = isMouseOverBezierCurve(vrtxs, x, y);
-  }
-
-  Point calculateCasteljauPoly(int deg, int idx, float t,
-                               std::vector<Point> &vrtxs) {
-    if (deg != 0) {
-      Point p1 = calculateCasteljauPoly(deg - 1, idx, t, vrtxs);
-      Point p2 = calculateCasteljauPoly(deg - 1, idx + 1, t, vrtxs);
-      return Point((1 - t) * p1.x + t * p2.x, (1 - t) * p1.y + t * p2.y);
+    updateCurveCache();
+    mouseOver = false;
+    for (size_t i = 1; i < curvePoints.size(); i++) {
+      if (isMouseOverLine(curvePoints[i - 1], curvePoints[i], x, y)) {
+        mouseOver = true;
+        return;
+      }
     }
-    return vrtxs[idx];
   }
 
   void draw(std::function<void(int, int, const Color &)> putPixel) {
     // do not show the line if we are selecting the starting node
     drawBoundingBox(putPixel);
 
-    Point prevPoint = vrtxs[0];
-
     if (state == FigureState::Selected || state == FigureState::DragVertex ||
         state == FigureState::SelectVertices) {
-      for (int i = 1; i < maxVertices; i++) {
+      int controlPointCount = getActiveControlPointCount();
+      for (int i = 1; i < controlPointCount; i++) {
         deployLine(vrtxs[i - 1], vrtxs[i], boxColor, putPixel);
       }
     }
 
-    prevPoint = vrtxs[0];
-    int tSteps = 40;
-    for (int inc = 0; inc < tSteps; inc++) {
-      float t = (float)inc / (float)tSteps;
-      int deg =
-          state == FigureState::SelectVertices ? selectedVrtx : maxVertices - 1;
-      Point currPoint = calculateCasteljauPoly(deg, 0, t, vrtxs);
-      deployLine(prevPoint, currPoint, lineColor, putPixel);
-      prevPoint = currPoint;
+    updateCurveCache();
+    for (size_t i = 1; i < curvePoints.size(); i++) {
+      deployLine(curvePoints[i - 1], curvePoints[i], lineColor, putPixel);
     }
-    int lastVrtxIdx =
-        state == FigureState::SelectVertices ? selectedVrtx : maxVertices - 1;
-    deployLine(prevPoint, vrtxs[lastVrtxIdx], lineColor, putPixel);
 
     drawControlPoints(putPixel);
   }
