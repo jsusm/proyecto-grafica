@@ -4,7 +4,10 @@
 #
 
 # Add source to this project's executable.
-add_executable (proyecto1 "src/proyecto#1.cpp" "src/proyecto#1.h" "src/engine2D.h" "src/engine2D.cpp" "src/primitives.cpp" "src/primitives.h" "src/persistFigures.cpp" "src/persistFigures.h")
+add_executable (proyecto1 "src/proyecto#1.cpp" "src/proyecto#1.h"
+                "src/engine2D.h" "src/engine2D.cpp" "src/primitives.cpp"
+                "src/primitives.h" "src/persistFigures.cpp"
+                "src/persistFigures.h" "src/figures.h" "src/figures.cpp")
 
 if (CMAKE_VERSION VERSION_GREATER 3.12)
   set_property(TARGET proyecto1 PROPERTY CXX_STANDARD 20)
@@ -12,8 +15,8 @@ endif()
 
 target_include_directories(proyecto1 PRIVATE include)
 
-target_link_libraries(proyecto1 PRIVATE 
-    glfw  
+target_link_libraries(proyecto1 PRIVATE
+    glfw
     glm
     glad
     imgui
