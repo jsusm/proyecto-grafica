@@ -29,6 +29,7 @@ private:
   bool dibujando = false;
   bool isHover = false;
   bool showQuadTree = false;
+  bool canvasDirty = true;
   bool pendingHistorySnapshot = false;
   static constexpr int maxHistorySize = 100;
   int historyIndex = -1;
@@ -54,6 +55,8 @@ public:
   Color lineColor{1, 1, 1};
   Color fillColor{1, 1, 1};
   bool filled = false;
+
+  void markCanvasDirty() { canvasDirty = true; }
 
   void rebuildQuadTree() {
     quadTree.clear();
@@ -129,6 +132,7 @@ public:
     }
     historyIndex = static_cast<int>(history.size()) - 1;
     pendingHistorySnapshot = false;
+    markCanvasDirty();
   }
 
   bool undo() {
@@ -238,8 +242,32 @@ public:
     return false;
   }
 
+  bool moveCurrentFigure(int dx, int dy) {
+    if (currentFigure == nullptr) {
+      return false;
+    }
+
+    currentFigure->translate(dx, dy);
+    rebuildQuadTree();
+    pushHistoryState();
+    return true;
+  }
+
+  void clearCanvas() {
+    figures.clear();
+    currentFigure = nullptr;
+    mouseReserved = false;
+    isHover = false;
+    rebuildQuadTree();
+    pushHistoryState();
+  }
+
   // Eventos
   void onkeyDown(int key) override {
+    if (ImGui::GetIO().WantCaptureKeyboard) {
+      return;
+    }
+
     if (isCtrlPressed() && key == GLFW_KEY_Z) {
       undo();
       return;
@@ -256,6 +284,18 @@ public:
     }
     if (key == GLFW_KEY_BACKSPACE) {
       deleteCurrentFigure();
+    }
+    if (key == GLFW_KEY_W) {
+      moveCurrentFigure(0, -4);
+    }
+    if (key == GLFW_KEY_A) {
+      moveCurrentFigure(-4, 0);
+    }
+    if (key == GLFW_KEY_S) {
+      moveCurrentFigure(0, 4);
+    }
+    if (key == GLFW_KEY_D) {
+      moveCurrentFigure(4, 0);
     }
   }
   void onMouseButtonDown(int button, double x, double y) override {
@@ -499,6 +539,9 @@ public:
     }
     if (ImGui::Button("Guardar en disco")) {
       saveFigures(collectSerializedFigures());
+    }
+    if (ImGui::Button("Clear Canvas")) {
+      clearCanvas();
     }
     ImGui::Separator();
     toolsSection();

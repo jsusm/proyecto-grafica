@@ -210,6 +210,14 @@ public:
   bool isFilled() { return filled; }
   const std::vector<Point> &getVrtxs() const { return vrtxs; }
 
+  virtual void translate(int dx, int dy) {
+    for (auto &vrtx : vrtxs) {
+      vrtx.x += dx;
+      vrtx.y += dy;
+    }
+    updateCenterPoint();
+  }
+
   void select() {
     switch (state) {
     case FigureState::Unselected:

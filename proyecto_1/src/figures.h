@@ -278,6 +278,11 @@ public:
     return true;
   }
 
+  void translate(int dx, int dy) {
+    Figure::translate(dx, dy);
+    curveDirty = true;
+  }
+
   bool onMouseButtonDown(int button, int x, int y) {
     if (state == FigureState::SelectVertices) {
       if (button == GLFW_MOUSE_BUTTON_RIGHT) {
