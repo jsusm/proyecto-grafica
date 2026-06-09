@@ -99,6 +99,7 @@ public:
     currentFigure = nullptr;
     mouseReserved = false;
     isHover = false;
+    backgroundColor = serializedFile.backgroundColor;
 
     for (const auto &serializedFigure : serializedFile.figures) {
       std::unique_ptr<Figure> figure = createFigure(serializedFigure);
@@ -166,6 +167,7 @@ public:
 
   SerializedFiguresFile collectSerializedFigures() {
     SerializedFiguresFile serializedFiguresFile{};
+    serializedFiguresFile.backgroundColor = backgroundColor;
     serializedFiguresFile.figures.reserve(figures.size());
 
     for (const auto &figure : figures) {
@@ -508,6 +510,9 @@ public:
       backgroundColor.g = bc[1];
       backgroundColor.b = bc[2];
     };
+    if (ImGui::IsItemDeactivatedAfterEdit()) {
+      pushHistoryState();
+    }
 
     ImGui::Separator();
     ImGui::SeparatorText("Color de Linea");

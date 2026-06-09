@@ -13,6 +13,7 @@ struct SerializedFigure {
 };
 struct SerializedFiguresFile {
   int nFigures;
+  Color backgroundColor{0.1f, 0.1f, 0.15f};
   std::vector<SerializedFigure> figures;
 };
 
