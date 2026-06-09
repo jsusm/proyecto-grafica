@@ -3,12 +3,14 @@
 #include "imgui.h"
 #include "persistFigures.h"
 #include "primitives.h"
+#include "quadTree.h"
 #include <algorithm>
 #include <cstdio>
 #include <cstdlib>
 #include <functional>
 #include <iostream>
 #include <memory>
+#include <unordered_set>
 #include <vector>
 
 //////////////////////////////////////////////////////
@@ -26,6 +28,9 @@ private:
   Color colorPincel = Color(1.0f, 0.0f, 0.0f);
   bool dibujando = false;
   bool isHover = false;
+  bool showQuadTree = false;
+  QuadTree quadTree{QuadTreeRect{0, 0, WindowWidth - ToolsWindowWidth,
+                                 WindowHeight}};
 
 public:
   proyecto1()
@@ -45,6 +50,23 @@ public:
   Color lineColor{1, 1, 1};
   Color fillColor{1, 1, 1};
   bool filled = false;
+
+  void rebuildQuadTree() {
+    quadTree.clear();
+    for (auto &figure : figures) {
+      quadTree.insert(figure.get());
+    }
+  }
+
+  std::vector<Figure *> getMouseCandidateFigures(int x, int y) {
+    rebuildQuadTree();
+    return quadTree.queryPoint(x, y);
+  }
+
+  std::unordered_set<Figure *> getMouseCandidateSet(int x, int y) {
+    std::vector<Figure *> candidates = getMouseCandidateFigures(x, y);
+    return std::unordered_set<Figure *>(candidates.begin(), candidates.end());
+  }
 
   void setup() override {
     clear(backgroundColor);
@@ -207,7 +229,11 @@ public:
     {
 
       if (currentFigure == nullptr) {
+        std::unordered_set<Figure *> candidates = getMouseCandidateSet(x, y);
         for (auto it = figures.rbegin(); it != figures.rend(); ++it) {
+          if (candidates.find(it->get()) == candidates.end()) {
+            continue;
+          }
           (*it)->onMouseButtonDown(button, x, y);
 
           if ((*it)->mouseOver) {
@@ -223,7 +249,11 @@ public:
           if (!mouseReserved) {
             currentFigure->unselect();
             currentFigure = nullptr;
+            std::unordered_set<Figure *> candidates = getMouseCandidateSet(x, y);
             for (auto it = figures.rbegin(); it != figures.rend(); ++it) {
+              if (candidates.find(it->get()) == candidates.end()) {
+                continue;
+              }
               (*it)->onMouseButtonDown(button, x, y);
 
               if ((*it)->mouseOver) {
@@ -253,8 +283,9 @@ public:
     if (currentFigure != nullptr) {
       mouseReserved = currentFigure->onMouseButtonUp(button, x, y);
       if (!mouseReserved) {
-        for (auto &f : figures) {
-          f->onMouseButtonUp(button, x, y);
+        std::vector<Figure *> candidates = getMouseCandidateFigures(x, y);
+        for (Figure *figure : candidates) {
+          figure->onMouseButtonUp(button, x, y);
         }
       }
     }
@@ -269,23 +300,30 @@ public:
     if (currentFigure != nullptr) {
       mouseReserved = currentFigure->onMouseMove(x, y);
       if (!mouseReserved) {
-        for (auto &f : figures) {
-          f->onMouseMove(x, y);
-          isHover |= f->mouseOver;
+        std::vector<Figure *> candidates = getMouseCandidateFigures(x, y);
+        for (Figure *figure : candidates) {
+          figure->onMouseMove(x, y);
+          isHover |= figure->mouseOver;
         }
       }
     } else {
-      for (auto &f : figures) {
-        f->onMouseMove(x, y);
-        isHover |= f->mouseOver;
+      std::vector<Figure *> candidates = getMouseCandidateFigures(x, y);
+      for (Figure *figure : candidates) {
+        figure->onMouseMove(x, y);
+        isHover |= figure->mouseOver;
       }
     }
   }
 
   void update(float deltaTime) override {
+    rebuildQuadTree();
     clear(backgroundColor);
     for (auto &f : figures) {
       f->draw(
+          [this](int x, int y, const Color &color) { putPixel(x, y, color); });
+    }
+    if (showQuadTree) {
+      quadTree.drawLeaves(
           [this](int x, int y, const Color &color) { putPixel(x, y, color); });
     }
   }
@@ -358,6 +396,7 @@ public:
     // Begin
     ImGui::Begin("Herramientas", NULL, window_flags);
     ImGui::Text("FPS: %.1f", ImGui::GetIO().Framerate);
+    ImGui::Checkbox("Mostrar QuadTree", &showQuadTree);
     if (ImGui::Button("Guardar en disco")) {
       saveFigures(collectSerializedFigures());
     }

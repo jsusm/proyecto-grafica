@@ -165,6 +165,7 @@ protected:
     }
   }
 
+public:
   virtual BoundingBox getBoundingBox() {
     // get min x and y
     int minX = vrtxs[0].x;
@@ -179,6 +180,8 @@ protected:
     }
     return BoundingBox(Point(minX, minY), Point(maxX, maxY));
   }
+
+protected:
   virtual void isMouseOver(int x, int y) {}
 
 public:
