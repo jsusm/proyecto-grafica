@@ -357,6 +357,8 @@ public:
     this->state = state;
   }
 
+  FigureState getState() const { return state; }
+
   // if this methods return true that means the mouse is "taken"
   // no other figure can interact with the mouse, like when the
   // user is dragging the figure, if return false the mouse

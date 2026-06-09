@@ -29,6 +29,10 @@ private:
   bool dibujando = false;
   bool isHover = false;
   bool showQuadTree = false;
+  bool pendingHistorySnapshot = false;
+  static constexpr int maxHistorySize = 100;
+  int historyIndex = -1;
+  std::vector<SerializedFiguresFile> history;
   QuadTree quadTree{QuadTreeRect{0, 0, WindowWidth - ToolsWindowWidth,
                                  WindowHeight}};
 
@@ -68,35 +72,96 @@ public:
     return std::unordered_set<Figure *>(candidates.begin(), candidates.end());
   }
 
+  std::unique_ptr<Figure> createFigure(const SerializedFigure &serializedFigure) {
+    switch (serializedFigure.type) {
+    case FigureType::Line:
+      return std::make_unique<Line>(serializedFigure.lineColor,
+                                    serializedFigure.fillColor);
+    case FigureType::Rect:
+      return std::make_unique<Rect>(serializedFigure.lineColor,
+                                    serializedFigure.fillColor);
+    case FigureType::Triangle:
+      return std::make_unique<Triangle>(serializedFigure.lineColor,
+                                        serializedFigure.fillColor);
+    case FigureType::Ellipse:
+      return std::make_unique<Ellipse>(serializedFigure.lineColor,
+                                       serializedFigure.fillColor);
+    case FigureType::BezierCurve:
+      return std::make_unique<BezierCurve>(serializedFigure.lineColor,
+                                           serializedFigure.fillColor);
+    default:
+      return nullptr;
+    }
+  }
+
+  void restoreSerializedFigures(const SerializedFiguresFile &serializedFile) {
+    figures.clear();
+    currentFigure = nullptr;
+    mouseReserved = false;
+    isHover = false;
+
+    for (const auto &serializedFigure : serializedFile.figures) {
+      std::unique_ptr<Figure> figure = createFigure(serializedFigure);
+      if (figure == nullptr) {
+        continue;
+      }
+
+      figure->setFilled(serializedFigure.filled);
+      figure->loadVrtxs(serializedFigure.points);
+      figure->setState(FigureState::Unselected);
+      figures.push_back(std::move(figure));
+    }
+
+    rebuildQuadTree();
+  }
+
+  void pushHistoryState() {
+    SerializedFiguresFile snapshot = collectSerializedFigures();
+
+    if (historyIndex + 1 < static_cast<int>(history.size())) {
+      history.erase(history.begin() + historyIndex + 1, history.end());
+    }
+
+    history.push_back(snapshot);
+    if (static_cast<int>(history.size()) > maxHistorySize) {
+      history.erase(history.begin());
+    }
+    historyIndex = static_cast<int>(history.size()) - 1;
+    pendingHistorySnapshot = false;
+  }
+
+  bool undo() {
+    if (historyIndex <= 0) {
+      return false;
+    }
+
+    historyIndex--;
+    restoreSerializedFigures(history[historyIndex]);
+    pendingHistorySnapshot = false;
+    return true;
+  }
+
+  bool redo() {
+    if (historyIndex + 1 >= static_cast<int>(history.size())) {
+      return false;
+    }
+
+    historyIndex++;
+    restoreSerializedFigures(history[historyIndex]);
+    pendingHistorySnapshot = false;
+    return true;
+  }
+
+  bool isCtrlPressed() const {
+    return isKeyPressed(GLFW_KEY_LEFT_CONTROL) ||
+           isKeyPressed(GLFW_KEY_RIGHT_CONTROL);
+  }
+
   void setup() override {
     clear(backgroundColor);
     std::cout << "Motor inicializado exitosamente." << std::endl;
-    SerializedFiguresFile fileFigures = loadFigures();
-    for (auto &f : fileFigures.figures) {
-      auto figureType = static_cast<FigureType>(f.type);
-      switch (figureType) {
-      case FigureType::Line:
-        figures.push_back(std::make_unique<Line>(f.lineColor, f.fillColor));
-        break;
-      case FigureType::Rect:
-        figures.push_back(std::make_unique<Rect>(f.lineColor, f.fillColor));
-        break;
-      case FigureType::Triangle:
-        figures.push_back(std::make_unique<Triangle>(f.lineColor, f.fillColor));
-        break;
-      case FigureType::Ellipse:
-        figures.push_back(std::make_unique<Ellipse>(f.lineColor, f.fillColor));
-        break;
-      case FigureType::BezierCurve:
-        figures.push_back(
-            std::make_unique<BezierCurve>(f.lineColor, f.fillColor));
-        break;
-      }
-      currentFigure = figures.back().get();
-      currentFigure->setFilled(f.filled);
-      currentFigure->loadVrtxs(f.points);
-      currentFigure->setState(FigureState::Unselected);
-    }
+    restoreSerializedFigures(loadFigures());
+    pushHistoryState();
   }
 
   SerializedFiguresFile collectSerializedFigures() {
@@ -127,6 +192,7 @@ public:
     for (size_t i = 0; i + 1 < figures.size(); i++) {
       if (figures[i].get() == currentFigure) {
         std::swap(figures[i], figures[i + 1]);
+        pushHistoryState();
         return true;
       }
     }
@@ -142,6 +208,7 @@ public:
     for (size_t i = 1; i < figures.size(); i++) {
       if (figures[i].get() == currentFigure) {
         std::swap(figures[i], figures[i - 1]);
+        pushHistoryState();
         return true;
       }
     }
@@ -160,6 +227,7 @@ public:
         currentFigure = nullptr;
         mouseReserved = false;
         isHover = false;
+        pushHistoryState();
         return true;
       }
     }
@@ -170,6 +238,14 @@ public:
 
   // Eventos
   void onkeyDown(int key) override {
+    if (isCtrlPressed() && key == GLFW_KEY_Z) {
+      undo();
+      return;
+    }
+    if (isCtrlPressed() && key == GLFW_KEY_Y) {
+      redo();
+      return;
+    }
     if (key == GLFW_KEY_Q) {
       glfwSetWindowShouldClose(window, GLFW_TRUE);
     }
@@ -191,6 +267,7 @@ public:
       currentFigure->onMouseButtonDown(button, x, y);
       currentFigure->setFilled(filled);
       currentTool = ToolsType::Select;
+      pendingHistorySnapshot = true;
 
     } else if (currentTool == ToolsType::Rect) {
 
@@ -199,6 +276,7 @@ public:
       currentFigure->onMouseButtonDown(button, x, y);
       currentFigure->setFilled(filled);
       currentTool = ToolsType::Select;
+      pendingHistorySnapshot = true;
 
     } else if (currentTool == ToolsType::Triangle) {
 
@@ -207,6 +285,7 @@ public:
       currentFigure->onMouseButtonDown(button, x, y);
       currentFigure->setFilled(filled);
       currentTool = ToolsType::Select;
+      pendingHistorySnapshot = true;
 
     } else if (currentTool == ToolsType::Ellipse) {
 
@@ -215,6 +294,7 @@ public:
       currentFigure->onMouseButtonDown(button, x, y);
       currentFigure->setFilled(filled);
       currentTool = ToolsType::Select;
+      pendingHistorySnapshot = true;
 
     } else if (currentTool == ToolsType::BezierCurve) {
 
@@ -223,6 +303,7 @@ public:
       currentFigure->onMouseButtonDown(button, x, y);
       currentFigure->setFilled(filled);
       currentTool = ToolsType::Select;
+      pendingHistorySnapshot = true;
 
     } else if (currentTool == ToolsType::Select)
 
@@ -245,6 +326,9 @@ public:
         }
       } else {
         mouseReserved = currentFigure->onMouseButtonDown(button, x, y);
+        if (mouseReserved) {
+          pendingHistorySnapshot = true;
+        }
         if (currentTool == ToolsType::Select) {
           if (!mouseReserved) {
             currentFigure->unselect();
@@ -287,6 +371,10 @@ public:
         for (Figure *figure : candidates) {
           figure->onMouseButtonUp(button, x, y);
         }
+      }
+      if (pendingHistorySnapshot &&
+          currentFigure->getState() != FigureState::SelectVertices) {
+        pushHistoryState();
       }
     }
   }
@@ -400,6 +488,13 @@ public:
     ImGui::Begin("Herramientas", NULL, window_flags);
     ImGui::Text("FPS: %.1f", ImGui::GetIO().Framerate);
     ImGui::Checkbox("Mostrar QuadTree", &showQuadTree);
+    if (ImGui::Button("Undo")) {
+      undo();
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Redo")) {
+      redo();
+    }
     if (ImGui::Button("Guardar en disco")) {
       saveFigures(collectSerializedFigures());
     }
@@ -426,6 +521,9 @@ public:
         currentFigure->setLineColor(lineColor);
       }
     };
+    if (currentFigure != nullptr && ImGui::IsItemDeactivatedAfterEdit()) {
+      pushHistoryState();
+    }
     ImGui::SeparatorText("Color de relleno");
     if (ImGui::ColorEdit3("  ", fc)) {
       fillColor.r = fc[0];
@@ -435,9 +533,13 @@ public:
         currentFigure->setFillColor(fillColor);
       }
     };
+    if (currentFigure != nullptr && ImGui::IsItemDeactivatedAfterEdit()) {
+      pushHistoryState();
+    }
     if (ImGui::Checkbox("Rellenar figura", &filled)) {
       if (currentFigure != nullptr) {
         currentFigure->setFilled(filled);
+        pushHistoryState();
       }
     };
     ImGui::SeparatorText("Controles de Figura");
@@ -454,7 +556,9 @@ public:
         if (currentFigure->type == FigureType::BezierCurve) {
           if (ImGui::Button("Elevate Bezier Curve Grade")) {
             BezierCurve *bc = static_cast<BezierCurve *>(currentFigure);
-            bc->elevateGrade();
+            if (bc->elevateGrade()) {
+              pushHistoryState();
+            }
           }
         }
       }
