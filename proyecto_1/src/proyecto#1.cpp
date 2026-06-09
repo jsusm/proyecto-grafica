@@ -322,6 +322,9 @@ public:
       f->draw(
           [this](int x, int y, const Color &color) { putPixel(x, y, color); });
     }
+    if(currentFigure != nullptr){
+      currentFigure->drawControls([this](int x, int y, const Color &color) { putPixel(x, y, color); });
+    }
     if (showQuadTree) {
       quadTree.drawLeaves(
           [this](int x, int y, const Color &color) { putPixel(x, y, color); });

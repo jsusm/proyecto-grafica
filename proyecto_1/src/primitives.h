@@ -197,6 +197,11 @@ public:
   bool mouseOver = false;
   virtual void draw(std::function<void(int, int, const Color &)> putPixel) {};
 
+  void drawControls(std::function<void(int, int, const Color &)> putPixel) {
+    drawBoundingBox(putPixel);
+    drawControlPoints(putPixel);
+  };
+
   void setLineColor(Color color) { lineColor = color; }
   Color getLineColor() { return lineColor; }
   void setFillColor(Color color) { fillColor = color; }

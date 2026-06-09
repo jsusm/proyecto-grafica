@@ -39,12 +39,12 @@ public:
       return;
     }
 
-    drawBoundingBox(putPixel);
+
 
     deployLine(vrtxs[0], vrtxs[1], lineColor, putPixel);
 
     // Show control points
-    drawControlPoints(putPixel);
+
   }
 
   void isMouseOver(int x, int y) {
@@ -101,7 +101,7 @@ public:
       return;
     }
 
-    drawBoundingBox(putPixel);
+
 
     // deploy lines because the figure can be edited in any quadrilateral.
     deployFilledTriangle(vrtxs[0], vrtxs[1], vrtxs[2], lineColor, fillColor,
@@ -110,7 +110,7 @@ public:
                          filled, putPixel, true);
 
     // Show control points
-    drawControlPoints(putPixel);
+
   }
 };
 
@@ -133,14 +133,14 @@ public:
       return;
     }
 
-    drawBoundingBox(putPixel);
+
 
     // deploy lines because the figure can be edited in any quadrilateral.
     deployFilledTriangle(vrtxs[0], vrtxs[1], vrtxs[2], lineColor, fillColor,
                          filled, putPixel);
 
     // Show control points
-    drawControlPoints(putPixel);
+
   }
 };
 
@@ -163,7 +163,7 @@ public:
       return;
     }
 
-    drawBoundingBox(putPixel);
+
     // deploy lines because the figure can be edited in any quadrilateral.
     if (std::abs(vrtxs[0].x - vrtxs[1].x) <= 4 ||
         std::abs(vrtxs[0].y - vrtxs[1].y) <= 4) {
@@ -171,7 +171,7 @@ public:
     } else {
       deployEllipse(vrtxs[0], vrtxs[1], lineColor, fillColor, filled, putPixel);
     }
-    drawControlPoints(putPixel);
+
   }
 };
 
@@ -351,7 +351,7 @@ public:
 
   void draw(std::function<void(int, int, const Color &)> putPixel) {
     // do not show the line if we are selecting the starting node
-    drawBoundingBox(putPixel);
+
 
     if (state == FigureState::Selected || state == FigureState::DragVertex ||
         state == FigureState::SelectVertices) {
@@ -366,6 +366,6 @@ public:
       deployLine(curvePoints[i - 1], curvePoints[i], lineColor, putPixel);
     }
 
-    drawControlPoints(putPixel);
+
   }
 };
