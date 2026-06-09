@@ -209,6 +209,7 @@ public:
   void setFilled(bool value) { filled = value; }
   bool isFilled() { return filled; }
   const std::vector<Point> &getVrtxs() const { return vrtxs; }
+  virtual void setConstrainProportions(bool value) {}
 
   virtual void translate(int dx, int dy) {
     for (auto &vrtx : vrtxs) {

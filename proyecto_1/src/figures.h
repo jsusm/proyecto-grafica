@@ -53,6 +53,18 @@ public:
 };
 
 class Rect : public Figure {
+private:
+  bool constrainProportions = false;
+
+  void applyProportionsConstraint() {
+    int dx = vrtxs[1].x - vrtxs[0].x;
+    int dy = vrtxs[1].y - vrtxs[0].y;
+    int side = std::min(std::abs(dx), std::abs(dy));
+
+    vrtxs[1].x = vrtxs[0].x + (dx < 0 ? -side : side);
+    vrtxs[1].y = vrtxs[0].y + (dy < 0 ? -side : side);
+  }
+
 public:
   Rect(Color line, Color fill) : Figure(line, fill) {
     type = FigureType::Rect;
@@ -60,6 +72,8 @@ public:
     vrtxs.resize(maxVertices);
     vrtxHover.resize(maxVertices, false);
   }
+
+  void setConstrainProportions(bool value) { constrainProportions = value; }
 
   void isMouseOver(int x, int y) {
     mouseOver =
@@ -76,6 +90,9 @@ public:
   bool onMouseMove(int x, int y) {
     bool result = Figure::onMouseMove(x, y);
     if (state == FigureState::SelectVertices && selectedVrtx >= 1) {
+      if (constrainProportions) {
+        applyProportionsConstraint();
+      }
       updateSecondaryPoints();
     }
     return result;
@@ -84,10 +101,14 @@ public:
   bool onMouseButtonDown(int button, int x, int y) {
     if (button != GLFW_MOUSE_BUTTON_LEFT)
       return false;
+    bool wasSelecting = state == FigureState::SelectVertices;
     bool result = Figure::onMouseButtonDown(button, x, y);
     if (state == FigureState::SelectVertices && selectedVrtx == 2) {
       // assign the other vertices with the recent two
       stateMachine(0);
+      if (wasSelecting && constrainProportions) {
+        applyProportionsConstraint();
+      }
       updateSecondaryPoints();
       updateCenterPoint();
     }
@@ -145,12 +166,45 @@ public:
 };
 
 class Ellipse : public Figure {
+private:
+  bool constrainProportions = false;
+
+  void applyProportionsConstraint() {
+    int dx = vrtxs[1].x - vrtxs[0].x;
+    int dy = vrtxs[1].y - vrtxs[0].y;
+    int side = std::min(std::abs(dx), std::abs(dy));
+
+    vrtxs[1].x = vrtxs[0].x + (dx < 0 ? -side : side);
+    vrtxs[1].y = vrtxs[0].y + (dy < 0 ? -side : side);
+  }
+
 public:
   Ellipse(Color line, Color fill) : Figure(line, fill) {
     type = FigureType::Ellipse;
     maxVertices = 2;
     vrtxs.resize(maxVertices);
     vrtxHover.resize(maxVertices, false);
+  }
+
+  void setConstrainProportions(bool value) { constrainProportions = value; }
+
+  bool onMouseMove(int x, int y) {
+    bool result = Figure::onMouseMove(x, y);
+    if (state == FigureState::SelectVertices && selectedVrtx >= 1 &&
+        constrainProportions) {
+      applyProportionsConstraint();
+    }
+    return result;
+  }
+
+  bool onMouseButtonDown(int button, int x, int y) {
+    bool wasSelecting = state == FigureState::SelectVertices && selectedVrtx >= 1;
+    bool result = Figure::onMouseButtonDown(button, x, y);
+    if (wasSelecting && constrainProportions) {
+      applyProportionsConstraint();
+      updateCenterPoint();
+    }
+    return result;
   }
 
   void isMouseOver(int x, int y) {

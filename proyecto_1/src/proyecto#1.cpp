@@ -163,6 +163,12 @@ public:
            isKeyPressed(GLFW_KEY_RIGHT_CONTROL);
   }
 
+  void updateCurrentFigureConstraints() {
+    if (currentFigure != nullptr) {
+      currentFigure->setConstrainProportions(isCtrlPressed());
+    }
+  }
+
   void setup() override {
     clear(backgroundColor);
     std::cout << "Motor inicializado exitosamente." << std::endl;
@@ -308,6 +314,7 @@ public:
 
       figures.push_back(std::make_unique<Line>(lineColor, fillColor));
       currentFigure = figures.back().get();
+      updateCurrentFigureConstraints();
       currentFigure->onMouseButtonDown(button, x, y);
       currentFigure->setFilled(filled);
       currentTool = ToolsType::Select;
@@ -318,6 +325,7 @@ public:
 
       figures.push_back(std::make_unique<Rect>(lineColor, fillColor));
       currentFigure = figures.back().get();
+      updateCurrentFigureConstraints();
       currentFigure->onMouseButtonDown(button, x, y);
       currentFigure->setFilled(filled);
       currentTool = ToolsType::Select;
@@ -328,6 +336,7 @@ public:
 
       figures.push_back(std::make_unique<Triangle>(lineColor, fillColor));
       currentFigure = figures.back().get();
+      updateCurrentFigureConstraints();
       currentFigure->onMouseButtonDown(button, x, y);
       currentFigure->setFilled(filled);
       currentTool = ToolsType::Select;
@@ -338,6 +347,7 @@ public:
 
       figures.push_back(std::make_unique<Ellipse>(lineColor, fillColor));
       currentFigure = figures.back().get();
+      updateCurrentFigureConstraints();
       currentFigure->onMouseButtonDown(button, x, y);
       currentFigure->setFilled(filled);
       currentTool = ToolsType::Select;
@@ -348,6 +358,7 @@ public:
 
       figures.push_back(std::make_unique<BezierCurve>(lineColor, fillColor));
       currentFigure = figures.back().get();
+      updateCurrentFigureConstraints();
       currentFigure->onMouseButtonDown(button, x, y);
       currentFigure->setFilled(filled);
       currentTool = ToolsType::Select;
@@ -375,6 +386,7 @@ public:
           }
         }
       } else {
+        updateCurrentFigureConstraints();
         mouseReserved = currentFigure->onMouseButtonDown(button, x, y);
         if (mouseReserved) {
           pendingHistorySnapshot = true;
@@ -417,6 +429,7 @@ public:
       return;
     }
     if (currentFigure != nullptr) {
+      updateCurrentFigureConstraints();
       mouseReserved = currentFigure->onMouseButtonUp(button, x, y);
       markCanvasDirty();
       if (!mouseReserved) {
@@ -439,6 +452,7 @@ public:
     }
     isHover = false;
     if (currentFigure != nullptr) {
+      updateCurrentFigureConstraints();
       mouseReserved = currentFigure->onMouseMove(x, y);
       markCanvasDirty();
       if (!mouseReserved) {
