@@ -117,6 +117,7 @@ public:
     }
 
     rebuildQuadTree();
+    markCanvasDirty();
   }
 
   void pushHistoryState() {
@@ -281,6 +282,7 @@ public:
     }
     if (key == GLFW_KEY_SPACE) {
       clear(backgroundColor);
+      markCanvasDirty();
     }
     if (key == GLFW_KEY_BACKSPACE) {
       deleteCurrentFigure();
@@ -310,6 +312,7 @@ public:
       currentFigure->setFilled(filled);
       currentTool = ToolsType::Select;
       pendingHistorySnapshot = true;
+      markCanvasDirty();
 
     } else if (currentTool == ToolsType::Rect) {
 
@@ -319,6 +322,7 @@ public:
       currentFigure->setFilled(filled);
       currentTool = ToolsType::Select;
       pendingHistorySnapshot = true;
+      markCanvasDirty();
 
     } else if (currentTool == ToolsType::Triangle) {
 
@@ -328,6 +332,7 @@ public:
       currentFigure->setFilled(filled);
       currentTool = ToolsType::Select;
       pendingHistorySnapshot = true;
+      markCanvasDirty();
 
     } else if (currentTool == ToolsType::Ellipse) {
 
@@ -337,6 +342,7 @@ public:
       currentFigure->setFilled(filled);
       currentTool = ToolsType::Select;
       pendingHistorySnapshot = true;
+      markCanvasDirty();
 
     } else if (currentTool == ToolsType::BezierCurve) {
 
@@ -346,6 +352,7 @@ public:
       currentFigure->setFilled(filled);
       currentTool = ToolsType::Select;
       pendingHistorySnapshot = true;
+      markCanvasDirty();
 
     } else if (currentTool == ToolsType::Select)
 
@@ -363,6 +370,7 @@ public:
             currentFigure = it->get();
             currentFigure->select();
             onSelectFigure();
+            markCanvasDirty();
             break;
           }
         }
@@ -375,6 +383,7 @@ public:
           if (!mouseReserved) {
             currentFigure->unselect();
             currentFigure = nullptr;
+            markCanvasDirty();
             std::unordered_set<Figure *> candidates = getMouseCandidateSet(x, y);
             for (auto it = figures.rbegin(); it != figures.rend(); ++it) {
               if (candidates.find(it->get()) == candidates.end()) {
@@ -386,6 +395,7 @@ public:
                 currentFigure = it->get();
                 currentFigure->select();
                 onSelectFigure();
+                markCanvasDirty();
                 break;
               }
             }
@@ -408,6 +418,7 @@ public:
     }
     if (currentFigure != nullptr) {
       mouseReserved = currentFigure->onMouseButtonUp(button, x, y);
+      markCanvasDirty();
       if (!mouseReserved) {
         std::vector<Figure *> candidates = getMouseCandidateFigures(x, y);
         for (Figure *figure : candidates) {
@@ -429,6 +440,7 @@ public:
     isHover = false;
     if (currentFigure != nullptr) {
       mouseReserved = currentFigure->onMouseMove(x, y);
+      markCanvasDirty();
       if (!mouseReserved) {
         std::vector<Figure *> candidates = getMouseCandidateFigures(x, y);
         for (Figure *figure : candidates) {
@@ -437,15 +449,23 @@ public:
         }
       }
     } else {
+      bool wasHover = isHover;
       std::vector<Figure *> candidates = getMouseCandidateFigures(x, y);
       for (Figure *figure : candidates) {
         figure->onMouseMove(x, y);
         isHover |= figure->mouseOver;
       }
+      if (wasHover != isHover) {
+        markCanvasDirty();
+      }
     }
   }
 
   void update(float deltaTime) override {
+    if (!canvasDirty) {
+      return;
+    }
+
     rebuildQuadTree();
     clear(backgroundColor);
     for (auto &f : figures) {
@@ -459,6 +479,7 @@ public:
       quadTree.drawLeaves(
           [this](int x, int y, const Color &color) { putPixel(x, y, color); });
     }
+    canvasDirty = false;
   }
 
   void toolsSection() {
@@ -472,6 +493,7 @@ public:
       if (currentFigure != nullptr) {
         currentFigure->unselect();
         currentFigure = nullptr;
+        markCanvasDirty();
       }
     }
     ImGui::SameLine();
@@ -480,6 +502,7 @@ public:
       if (currentFigure != nullptr) {
         currentFigure->unselect();
         currentFigure = nullptr;
+        markCanvasDirty();
       }
     }
     ImGui::SameLine();
@@ -488,6 +511,7 @@ public:
       if (currentFigure != nullptr) {
         currentFigure->unselect();
         currentFigure = nullptr;
+        markCanvasDirty();
       }
     }
     if (ImGui::Button("Ellipse")) {
@@ -495,6 +519,7 @@ public:
       if (currentFigure != nullptr) {
         currentFigure->unselect();
         currentFigure = nullptr;
+        markCanvasDirty();
       }
     }
     ImGui::SameLine();
@@ -503,6 +528,7 @@ public:
       if (currentFigure != nullptr) {
         currentFigure->unselect();
         currentFigure = nullptr;
+        markCanvasDirty();
       }
     }
   }
@@ -529,7 +555,9 @@ public:
     // Begin
     ImGui::Begin("Herramientas", NULL, window_flags);
     ImGui::Text("FPS: %.1f", ImGui::GetIO().Framerate);
-    ImGui::Checkbox("Mostrar QuadTree", &showQuadTree);
+    if (ImGui::Checkbox("Mostrar QuadTree", &showQuadTree)) {
+      markCanvasDirty();
+    }
     if (ImGui::Button("Undo")) {
       undo();
     }
@@ -552,6 +580,7 @@ public:
       backgroundColor.r = bc[0];
       backgroundColor.g = bc[1];
       backgroundColor.b = bc[2];
+      markCanvasDirty();
     };
     if (ImGui::IsItemDeactivatedAfterEdit()) {
       pushHistoryState();
@@ -567,6 +596,7 @@ public:
       lineColor.b = lc[2];
       if (currentFigure != nullptr) {
         currentFigure->setLineColor(lineColor);
+        markCanvasDirty();
       }
     };
     if (currentFigure != nullptr && ImGui::IsItemDeactivatedAfterEdit()) {
@@ -579,6 +609,7 @@ public:
       fillColor.b = fc[2];
       if (currentFigure != nullptr) {
         currentFigure->setFillColor(fillColor);
+        markCanvasDirty();
       }
     };
     if (currentFigure != nullptr && ImGui::IsItemDeactivatedAfterEdit()) {
@@ -587,6 +618,7 @@ public:
     if (ImGui::Checkbox("Rellenar figura", &filled)) {
       if (currentFigure != nullptr) {
         currentFigure->setFilled(filled);
+        markCanvasDirty();
         pushHistoryState();
       }
     };
